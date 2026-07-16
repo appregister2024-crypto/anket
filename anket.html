@@ -74,6 +74,8 @@
             text-shadow: 0px 1px 2px rgba(0,0,0,0.6);
         }
         .prefix { color: #2980b9; font-weight: bold; margin-right: 5px; }
+        /* KAZANAN TAÇ SİMGESİ İÇİN STİL */
+        .winner-crown { font-size: 1.5em; margin-right: 5px; vertical-align: middle; }
         .clickable-header { cursor: pointer; user-select: none; color: #2980b9; transition: color 0.2s; }
         .clickable-header:hover { color: #1a5276; }
     </style>
@@ -298,26 +300,24 @@
         if(optKeys.length === 0) { 
             resultsHtml = '<p>Henüz seçenek eklenmedi.</p>'; 
         } else {
-            // Seçenekleri diziye çevirip oylara göre büyükten küçüğe sıralıyoruz
             let optionsArray = optKeys.map((id, index) => {
                 return { id: id, data: globalData.options[id], origNum: index + 1 };
             });
             optionsArray.sort((a, b) => b.data.votes - a.data.votes);
             
-            // En yüksek oyu belirliyoruz (hiç oy yoksa havai fişek patlamaz)
             let maxVotes = optionsArray.length > 0 ? optionsArray[0].data.votes : 0;
 
             optionsArray.forEach((item) => {
                 const opt = item.data;
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                const number = item.origNum; // Kullanıcının oylama ekranında gördüğü numara korunuyor
                 const dynamicColor = getBarColor(percent);
                 
-                // Seçenek en yüksek oyu almışsa ve oyu 0'dan büyükse havai fişek ekle
-                const winnerIcon = (opt.votes === maxVotes && maxVotes > 0) ? ' 🎇' : '';
+                // Kazanan ise numara yerine taç simgesi kullan
+                const isWinner = (opt.votes === maxVotes && maxVotes > 0);
+                const prefixHtml = isWinner ? '<span class="winner-crown">👑</span>' : `<span class="prefix">${item.origNum})</span>`;
                 
                 resultsHtml += `<div style="margin-bottom:10px; font-size:14px;">
-                            <strong><span class="prefix">${number})</span> ${opt.text}${winnerIcon}</strong> (${opt.votes} Oy)
+                            <strong>${prefixHtml} ${opt.text}</strong> (${opt.votes} Oy)
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
                          </div>`;
             });
@@ -405,26 +405,24 @@
             
             let html = '';
             if(optKeys.length > 0) {
-                // Seçenekleri diziye çevirip oylara göre büyükten küçüğe sıralıyoruz
                 let optionsArray = optKeys.map((id, index) => {
                     return { id: id, data: globalData.options[id], origNum: index + 1 };
                 });
                 optionsArray.sort((a, b) => b.data.votes - a.data.votes);
                 
-                // En yüksek oyu belirliyoruz
                 let maxVotes = optionsArray.length > 0 ? optionsArray[0].data.votes : 0;
 
                 optionsArray.forEach((item) => {
                     const opt = item.data;
                     const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                    const number = item.origNum; // Numaraları sabit tutuyoruz ki A,B,C yerleşimiyle eşleşsin
                     const dynamicColor = getBarColor(percent);
                     
-                    // Kazananı işaretle
-                    const winnerIcon = (opt.votes === maxVotes && maxVotes > 0) ? ' 🎇' : '';
+                    // Kazanan ise numara yerine taç simgesi kullan
+                    const isWinner = (opt.votes === maxVotes && maxVotes > 0);
+                    const prefixHtml = isWinner ? '<span class="winner-crown">👑</span>' : `<span class="prefix">${item.origNum})</span>`;
 
                     html += `<div style="margin-bottom:15px;">
-                                <strong><span class="prefix">${number})</span> ${opt.text}${winnerIcon}</strong> (${opt.votes} Oy)
+                                <strong>${prefixHtml} ${opt.text}</strong> (${opt.votes} Oy)
                                 <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
                              </div>`;
                 });
