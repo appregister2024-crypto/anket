@@ -8,19 +8,21 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; display: flex; justify-content: center; padding: 50px; }
         .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
         h1, h2, h3 { text-align: center; color: #2c3e50; }
-        .hidden { display: none; }
-        input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        input[type="text"], input[type="password"], button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
         button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #2980b9; }
         .admin-btn { background-color: #e74c3c; margin-top: 20px; }
         .admin-btn:hover { background-color: #c0392b; }
         .poll-option { display: block; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 5px; border: 1px solid #eee; cursor: pointer; }
-        .code-list { max-height: 150px; overflow-y: auto; background: #eee; padding: 10px; font-family: monospace; font-size: 14px; border-radius: 5px; }
+        .poll-option input { margin-right: 10px; }
+        .code-list { max-height: 200px; overflow-y: auto; background: #eee; padding: 10px; font-family: monospace; font-size: 14px; border-radius: 5px; margin-top: 10px; }
         hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
         .error { color: red; font-size: 14px; text-align: center; font-weight: bold; }
         .success { color: green; font-size: 14px; text-align: center; font-weight: bold; }
         .result-bar { background: #eee; border-radius: 5px; margin-top: 5px; overflow: hidden; }
         .result-fill { background: #2ecc71; height: 20px; text-align: right; padding-right: 5px; color: white; font-size: 12px; line-height: 20px; width: 0%; transition: width 0.5s; }
+        .action-group { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -28,16 +30,22 @@
 <div class="container">
     <div id="voter-panel">
         <h1 id="page-title">Oylama Ekranı</h1>
-        
-        <div id="poll-items-container">Yükleniyor...</div>
-        
-        <div id="vote-form-area">
-            <hr>
-            <input type="text" id="voter-code" placeholder="4 Haneli Katılım Kodunuz" maxlength="4">
-            <button onclick="submitVote()">Oy Kullan</button>
+        <p id="voter-message"></p>
+
+        <div id="code-entry-area">
+            <p style="text-align:center; font-size:14px;">Oy kullanabilmek için lütfen katılımcı kodunuzu girin.</p>
+            <input type="text" id="voter-code-input" placeholder="4 Haneli Katılım Kodunuz" maxlength="4">
+            <button onclick="verifyCode()">Kodu Doğrula ve Devam Et</button>
         </div>
         
-        <p id="voter-message"></p>
+        <div id="voting-area" class="hidden">
+            <p style="text-align:center; color:#e67e22; font-weight:bold;">Lütfen tam olarak 3 seçenek işaretleyin.</p>
+            <div id="poll-items-container">Yükleniyor...</div>
+            <button onclick="submitVote()" style="background:#27ae60;">Seçimlerimi Onayla ve Oy Ver</button>
+        </div>
+
+        <div id="public-results-area" class="hidden"></div>
+        
         <button class="admin-btn" onclick="showPanel('login-panel')">Admin Girişi</button>
     </div>
 
@@ -53,21 +61,28 @@
     <div id="admin-panel" class="hidden">
         <h2>Yönetim Paneli</h2>
         
-        <h3>1. Oylama Ayarları</h3>
+        <h3>1. Oylama Sonuçları ve Ayarlar</h3>
         <button id="toggle-results-btn" onclick="toggleResults()" style="background:#9b59b6;">Sonuçları Herkese Göster: KAPALI</button>
+        <div id="admin-results-container" style="margin-top:15px;"></div>
         
         <hr>
-        <h3>2. Oylama Maddeleri</h3>
+        <h3>2. Oylama Maddeleri Ekle</h3>
         <input type="text" id="new-option" placeholder="Yeni seçenek yazın...">
         <button onclick="addOption()">Seçenek Ekle</button>
-        <ul id="options-list"></ul>
-        <button onclick="clearVotes()" style="background:#f39c12;">Tüm Oyları ve Kodları Sıfırla</button>
+        <button onclick="clearVotes()" style="background:#f39c12; margin-top:10px;">Tüm Oyları ve Kodları Sıfırla</button>
 
         <hr>
-        <h3>3. Katılımcı Kodları</h3>
-        <p style="font-size: 12px; color: #666;">Yalnızca ilk başlangıçta veya sıfırlamada basın. Mevcut kodları bozmaz.</p>
-        <button onclick="generateCodes()" style="background:#27ae60;">100 Rastgele Kod Üret (Yoksa)</button>
-        <div class="code-list" id="code-display">Kodlar yükleniyor...</div>
+        <h3>3. Katılımcı Kodları Yönetimi</h3>
+        <p style="font-size: 12px; color: #666;">Kodlar güvenliğiniz için gizlenmiştir. 100 rastgele yeni kod üretmek için veya mevcut kodları kopyalamak için butonları kullanın.</p>
+        
+        <button onclick="generateCodes()" style="background:#27ae60;">100 Rastgele Kod Üret</button>
+        
+        <div class="action-group">
+            <button onclick="toggleCodesVisibility()" style="background:#34495e;">Kodları Göster / Gizle</button>
+            <button onclick="copyCodes()" style="background:#2980b9;">📋 Kodları Kopyala</button>
+        </div>
+
+        <div class="code-list hidden" id="code-display"></div>
         
         <hr>
         <button class="admin-btn" onclick="logoutAdmin()">Çıkış Yap</button>
@@ -75,16 +90,16 @@
 </div>
 
 <script>
-    // Sizin Firebase veritabanı adresiniz sisteme entegre edildi
+    // Firebase Bağlantısı
     const FIREBASE_URL = "https://anket-aa7c7-default-rtdb.firebaseio.com/"; 
 
     let globalData = { options: {}, codes: {}, showResults: false };
+    let currentValidatedCode = null; // Doğrulanmış kullanıcı kodu
+    let adminCodesVisible = false;   // Admin kodları görsün mü?
 
     // --- VERİTABANINDAN VERİLERİ ANLIK ÇEKME (REALTIME) ---
     function initLiveSync() {
-        fetch(FIREBASE_URL + ".json")
-        .then(res => res.json())
-        .then(data => {
+        fetch(FIREBASE_URL + ".json").then(res => res.json()).then(data => {
             if(data) {
                 globalData = data;
                 if(!globalData.options) globalData.options = {};
@@ -94,18 +109,19 @@
             renderAdminPanel();
         });
 
-        // Her 3 saniyede bir sayfayı arka planda otomatik günceller (Canlı sonuçlar için)
+        // Her 3 saniyede bir sayfayı arka planda otomatik günceller
         setInterval(() => {
-            fetch(FIREBASE_URL + ".json")
-            .then(res => res.json())
-            .then(data => {
+            fetch(FIREBASE_URL + ".json").then(res => res.json()).then(data => {
                 if(data) {
                     globalData = data;
                     if(!globalData.options) globalData.options = {};
                     if(!globalData.codes) globalData.codes = {};
-                    // Kullanıcı panelindeyken canlı güncelle
+                    
                     if(!document.getElementById('voter-panel').classList.contains('hidden')) {
                         renderVoterPanel();
+                    }
+                    if(!document.getElementById('admin-panel').classList.contains('hidden')) {
+                        renderAdminPanel();
                     }
                 }
             });
@@ -125,7 +141,12 @@
         document.getElementById('login-panel').classList.add('hidden');
         document.getElementById('admin-panel').classList.add('hidden');
         document.getElementById(panelId).classList.remove('hidden');
-        if(panelId === 'voter-panel') renderVoterPanel();
+        
+        if(panelId === 'voter-panel') {
+            currentValidatedCode = null; // Çıkışta doğrulanmış kodu sıfırla
+            document.getElementById('voter-message').innerText = '';
+            renderVoterPanel();
+        }
         if(panelId === 'admin-panel') renderAdminPanel();
     }
 
@@ -144,7 +165,7 @@
     }
     function logoutAdmin() { showPanel('voter-panel'); }
 
-    // --- SEÇENEK EKLEME ---
+    // --- ADMİN: SEÇENEK EKLEME VE SONUÇ AYARLARI ---
     function addOption() {
         const text = document.getElementById('new-option').value.trim();
         if (text) {
@@ -155,52 +176,74 @@
         }
     }
 
-    // --- SONUÇLARI GÖSTER / GİZLE ---
     function toggleResults() {
         globalData.showResults = !globalData.showResults;
         saveToFirebase().then(() => renderAdminPanel());
     }
 
-    // --- 100 GÜVENLİ KOD ÜRETİMİ ---
+    function clearVotes() {
+        if(confirm("DİKKAT! Tüm oylar, seçenekler ve kodlar silinecek. Emin misiniz?")) {
+            globalData = { options: {}, codes: {}, showResults: false };
+            saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
+        }
+    }
+
+    // --- ADMİN: KOD ÜRETİMİ VE YÖNETİMİ ---
     function generateCodes() {
         if(Object.keys(globalData.codes).length > 0) {
             if(!confirm("Sistemde zaten kodlar var. Yeniden üretmek eskisini siler. Emin misiniz?")) return;
         }
-        
         const newCodes = new Set();
         while(newCodes.size < 100) {
-            const code = Math.floor(1000 + Math.random() * 9000).toString();
-            newCodes.add(code);
+            newCodes.add(Math.floor(1000 + Math.random() * 9000).toString());
         }
-
         globalData.codes = {};
-        newCodes.forEach(code => {
-            globalData.codes[code] = false; // false = kullanılmadı
-        });
-
+        newCodes.forEach(code => globalData.codes[code] = false);
         saveToFirebase().then(() => renderAdminPanel());
     }
 
-    // --- SIFIRLAMA ---
-    function clearVotes() {
-        if(confirm("DİKKAT! Tüm oylar, seçenekler ve kodlar silinecek. Emin misiniz?")) {
-            globalData = { options: {}, codes: {}, showResults: false };
-            saveToFirebase().then(() => {
-                renderAdminPanel();
-                renderVoterPanel();
-            });
-        }
+    function toggleCodesVisibility() {
+        adminCodesVisible = !adminCodesVisible;
+        renderAdminPanel();
+    }
+
+    function copyCodes() {
+        const codeKeys = Object.keys(globalData.codes);
+        if(codeKeys.length === 0) { alert("Kopyalanacak kod yok!"); return; }
+        
+        let textToCopy = "Oylama Katılım Kodları:\n\n";
+        codeKeys.forEach((code, index) => {
+            textToCopy += `${index + 1}. Kod: ${code}\n`;
+        });
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert("Tüm kodlar başarıyla kopyalandı! Excel'e veya WhatsApp'a yapıştırabilirsiniz.");
+        });
     }
 
     // --- ADMİN PANELİNİ ÇİZDİRME ---
     function renderAdminPanel() {
-        const list = document.getElementById('options-list');
-        list.innerHTML = '';
-        Object.keys(globalData.options).forEach(id => {
-            const opt = globalData.options[id];
-            list.innerHTML += `<li>${opt.text} - (Oy: ${opt.votes})</li>`;
-        });
+        // 1. Sonuçları Göster (Admin her zaman görür)
+        const adminResults = document.getElementById('admin-results-container');
+        const optKeys = Object.keys(globalData.options);
+        let totalVotes = 0;
+        optKeys.forEach(id => totalVotes += globalData.options[id].votes);
+        
+        let resultsHtml = '';
+        if(optKeys.length === 0) { resultsHtml = '<p>Henüz seçenek eklenmedi.</p>'; }
+        else {
+            optKeys.forEach(id => {
+                const opt = globalData.options[id];
+                const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                resultsHtml += `<div style="margin-bottom:10px; font-size:14px;">
+                            <strong>${opt.text}</strong> (${opt.votes} Oy)
+                            <div class="result-bar"><div class="result-fill" style="width:${percent}%">${percent}%</div></div>
+                         </div>`;
+            });
+        }
+        adminResults.innerHTML = resultsHtml;
 
+        // Herkese açık butonu durumu
         const btn = document.getElementById('toggle-results-btn');
         if(globalData.showResults) {
             btn.innerText = "Sonuçları Herkese Göster: AÇIK";
@@ -210,42 +253,61 @@
             btn.style.background = "#9b59b6";
         }
 
+        // 2. Kodları Listele (Gizli/Açık durumuna göre)
         const codeDisplay = document.getElementById('code-display');
         const codeKeys = Object.keys(globalData.codes);
-        if(codeKeys.length > 0) {
-            let html = `<strong>Kayıtlı Kodlar (${codeKeys.length} Adet):</strong><br>`;
-            codeKeys.forEach((code, index) => {
-                const status = globalData.codes[code] ? '<span style="color:red;">(X)</span>' : '(O)';
-                html += `${code}${status} ${index % 5 === 4 ? '<br>' : ' | '}`;
-            });
-            codeDisplay.innerHTML = html;
+        
+        if(adminCodesVisible) {
+            codeDisplay.classList.remove('hidden');
+            if(codeKeys.length > 0) {
+                let html = `<strong>Kayıtlı Kodlar (${codeKeys.length} Adet):</strong><br>`;
+                codeKeys.forEach((code, index) => {
+                    const status = globalData.codes[code] ? '<span style="color:red;">(Kullanıldı)</span>' : '(Boş)';
+                    html += `${code} ${status} ${index % 3 === 2 ? '<br>' : ' &nbsp;|&nbsp; '}`;
+                });
+                codeDisplay.innerHTML = html;
+            } else {
+                codeDisplay.innerHTML = "Henüz kod üretilmedi.";
+            }
         } else {
-            codeDisplay.innerHTML = "Henüz kod üretilmedi.";
+            codeDisplay.classList.add('hidden');
         }
     }
 
-    // --- KULLANICI PANELİNİ ÇİZDİRME (ANLIK VE ORTAK) ---
-    function renderVoterPanel() {
-        const container = document.getElementById('poll-items-container');
-        const formArea = document.getElementById('vote-form-area');
-        const title = document.getElementById('page-title');
+    // --- KULLANICI: KOD DOĞRULAMA (AŞAMA 1) ---
+    function verifyCode() {
+        const code = document.getElementById('voter-code-input').value.trim();
+        const msg = document.getElementById('voter-message');
 
+        if (code.length !== 4) { msg.className = 'error'; msg.innerText = "Lütfen 4 haneli kodunuzu girin."; return; }
+        if (globalData.codes[code] === undefined) { msg.className = 'error'; msg.innerText = "Geçersiz veya kayıtlı olmayan kod!"; return; }
+        if (globalData.codes[code] === true) { msg.className = 'error'; msg.innerText = "Bu kod ile daha önce oy kullanılmış!"; return; }
+
+        // Kod geçerli
+        currentValidatedCode = code;
+        msg.innerText = "";
+        renderVoterPanel(); // İkinci aşamaya geç
+    }
+
+    // --- KULLANICI EKRANINI ÇİZDİRME (ORTAK) ---
+    function renderVoterPanel() {
+        const codeArea = document.getElementById('code-entry-area');
+        const votingArea = document.getElementById('voting-area');
+        const resultsArea = document.getElementById('public-results-area');
+        const title = document.getElementById('page-title');
+        const container = document.getElementById('poll-items-container');
+        
         const optKeys = Object.keys(globalData.options);
         
-        if (optKeys.length === 0) {
-            container.innerHTML = '<p>Şu an aktif bir oylama bulunmuyor.</p>';
-            formArea.style.display = 'none';
-            return;
-        }
-
-        // Toplam Oy Hesaplama
-        let totalVotes = 0;
-        optKeys.forEach(id => totalVotes += globalData.options[id].votes);
-
-        // DURUM A: Admin sonuçları açtıysa (Herkes sonuç görecek)
+        // DURUM A: Admin sonuçları HERKESE AÇIK yaptıysa
         if(globalData.showResults) {
             title.innerText = "Oylama Sonuçları";
-            formArea.style.display = 'none'; // Oy kullanma formunu gizle
+            codeArea.classList.add('hidden');
+            votingArea.classList.add('hidden');
+            resultsArea.classList.remove('hidden');
+            
+            let totalVotes = 0;
+            optKeys.forEach(id => totalVotes += globalData.options[id].votes);
             
             let html = '';
             optKeys.forEach(id => {
@@ -256,48 +318,74 @@
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%">${percent}%</div></div>
                          </div>`;
             });
-            container.innerHTML = html;
+            resultsArea.innerHTML = html || '<p>Kayıtlı veri yok.</p>';
+            return;
         } 
-        // DURUM B: Normal oylama süreci
+        
+        // DURUM B: Sonuçlar kapalı, oylama devam ediyor
+        resultsArea.classList.add('hidden');
+        title.innerText = "Oylama Ekranı";
+
+        if (optKeys.length === 0) {
+            codeArea.classList.add('hidden');
+            votingArea.classList.remove('hidden');
+            container.innerHTML = '<p>Şu an aktif bir oylama bulunmuyor.</p>';
+            return;
+        }
+
+        // B1: Kullanıcı henüz kod doğrulamadıysa
+        if (!currentValidatedCode) {
+            codeArea.classList.remove('hidden');
+            votingArea.classList.add('hidden');
+            document.getElementById('voter-code-input').value = '';
+        } 
+        // B2: Kod doğrulandı, seçenekleri göster (Çoklu Seçim / Checkbox)
         else {
-            title.innerText = "Oylama Ekranı";
-            formArea.style.display = 'block'; // Oy kullanma formunu göster
+            codeArea.classList.add('hidden');
+            votingArea.classList.remove('hidden');
             
             let html = '';
             optKeys.forEach(id => {
                 const opt = globalData.options[id];
                 html += `<label class="poll-option">
-                            <input type="radio" name="poll" value="${id}"> ${opt.text}
+                            <input type="checkbox" name="poll_option" value="${id}"> ${opt.text}
                          </label>`;
             });
             container.innerHTML = html;
         }
     }
 
-    // --- OY KULLANMA PROSESİ ---
+    // --- KULLANICI: OY KULLANMA PROSESİ (AŞAMA 2) ---
     function submitVote() {
-        const selected = document.querySelector('input[name="poll"]:checked');
-        const code = document.getElementById('voter-code').value.trim();
         const msg = document.getElementById('voter-message');
+        const selectedOptions = document.querySelectorAll('input[name="poll_option"]:checked');
 
-        if (!selected) { msg.className = 'error'; msg.innerText = "Lütfen bir seçenek işaretleyin."; return; }
-        if (code.length !== 4) { msg.className = 'error'; msg.innerText = "Lütfen 4 haneli kodunuzu girin."; return; }
+        // Kurallar: Tam 3 Seçenek işaretlenmeli
+        if (selectedOptions.length !== 3) { 
+            msg.className = 'error'; 
+            msg.innerText = `Lütfen tam olarak 3 seçenek işaretleyin. (Şu an ${selectedOptions.length} adet seçtiniz)`; 
+            return; 
+        }
 
-        // Veritabanı Kontrolleri
-        if (globalData.codes[code] === undefined) { msg.className = 'error'; msg.innerText = "Geçersiz veya kayıtlı olmayan kod!"; return; }
-        if (globalData.codes[code] === true) { msg.className = 'error'; msg.innerText = "Bu kod ile daha önce oy kullanılmış!"; return; }
+        // Seçilen her seçeneğin oyunu 1 artır
+        selectedOptions.forEach(checkbox => {
+            const optionId = checkbox.value;
+            globalData.options[optionId].votes += 1;
+        });
 
-        // Oyu işle
-        const optionId = selected.value;
-        globalData.options[optionId].votes += 1;
-        globalData.codes[code] = true; // Kodu harcandı yap
+        // Kodu kullanıldı (harcandı) olarak işaretle
+        globalData.codes[currentValidatedCode] = true; 
 
         saveToFirebase().then(() => {
+            currentValidatedCode = null; // Sıfırla ki bir sonraki kişiye ekran yenilensin
             msg.className = 'success';
-            msg.innerText = "Oyunuz başarıyla kaydedildi! Teşekkürler.";
-            document.getElementById('voter-code').value = '';
-            if(selected) selected.checked = false;
-            renderVoterPanel();
+            msg.innerText = "Oylarınız başarıyla kaydedildi! Teşekkürler.";
+            
+            // 3 saniye sonra mesajı silip ekranı başa al
+            setTimeout(() => {
+                msg.innerText = '';
+                renderVoterPanel(); 
+            }, 3000);
         });
     }
 
