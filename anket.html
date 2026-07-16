@@ -22,7 +22,9 @@
         .success { color: green; font-size: 14px; text-align: center; font-weight: bold; }
         .result-bar { background: #eee; border-radius: 5px; margin-top: 5px; overflow: hidden; }
         .result-fill { background: #2ecc71; height: 20px; text-align: right; padding-right: 5px; color: white; font-size: 12px; line-height: 20px; width: 0%; transition: width 0.5s; }
-        .action-group { display: flex; gap: 10px; }
+        .prefix { color: #2980b9; font-weight: bold; margin-right: 5px; }
+        .clickable-header { cursor: pointer; user-select: none; color: #2980b9; transition: color 0.2s; }
+        .clickable-header:hover { color: #1a5276; }
     </style>
 </head>
 <body>
@@ -69,18 +71,16 @@
         <h3>2. Oylama Maddeleri Ekle</h3>
         <input type="text" id="new-option" placeholder="Yeni seçenek yazın...">
         <button onclick="addOption()">Seçenek Ekle</button>
-        <button onclick="clearVotes()" style="background:#f39c12; margin-top:10px;">Tüm Oyları ve Kodları Sıfırla</button>
+        <button onclick="clearVotes()" style="background:#e74c3c; margin-top:10px;">Tüm Oyları, Seçenekleri ve Kodları Sıfırla</button>
 
         <hr>
-        <h3>3. Katılımcı Kodları Yönetimi</h3>
-        <p style="font-size: 12px; color: #666;">Kodlar güvenliğiniz için gizlenmiştir. 100 rastgele yeni kod üretmek için veya mevcut kodları kopyalamak için butonları kullanın.</p>
+        <h3 class="clickable-header" onclick="toggleCodesVisibility()" title="Kodları göstermek/gizlemek için tıklayın">
+            3. Katılımcı Kodları 👁️
+        </h3>
+        <p style="font-size: 12px; color: #666; text-align: center;">Gizli kodları görmek için yukarıdaki başlığa tıklayın.</p>
         
         <button onclick="generateCodes()" style="background:#27ae60;">100 Rastgele Kod Üret</button>
-        
-        <div class="action-group">
-            <button onclick="toggleCodesVisibility()" style="background:#34495e;">Kodları Göster / Gizle</button>
-            <button onclick="copyCodes()" style="background:#2980b9;">📋 Kodları Kopyala</button>
-        </div>
+        <button onclick="copyCodes()" style="background:#2980b9;">📋 Kodları Kopyala</button>
 
         <div class="code-list hidden" id="code-display"></div>
         
@@ -92,10 +92,11 @@
 <script>
     // Firebase Bağlantısı
     const FIREBASE_URL = "https://anket-aa7c7-default-rtdb.firebaseio.com/"; 
+    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     let globalData = { options: {}, codes: {}, showResults: false };
-    let currentValidatedCode = null; // Doğrulanmış kullanıcı kodu
-    let adminCodesVisible = false;   // Admin kodları görsün mü?
+    let currentValidatedCode = null; 
+    let adminCodesVisible = false;   
 
     // --- VERİTABANINDAN VERİLERİ ANLIK ÇEKME (REALTIME) ---
     function initLiveSync() {
@@ -109,7 +110,6 @@
             renderAdminPanel();
         });
 
-        // Her 3 saniyede bir sayfayı arka planda otomatik günceller
         setInterval(() => {
             fetch(FIREBASE_URL + ".json").then(res => res.json()).then(data => {
                 if(data) {
@@ -143,7 +143,7 @@
         document.getElementById(panelId).classList.remove('hidden');
         
         if(panelId === 'voter-panel') {
-            currentValidatedCode = null; // Çıkışta doğrulanmış kodu sıfırla
+            currentValidatedCode = null; 
             document.getElementById('voter-message').innerText = '';
             renderVoterPanel();
         }
@@ -182,7 +182,7 @@
     }
 
     function clearVotes() {
-        if(confirm("DİKKAT! Tüm oylar, seçenekler ve kodlar silinecek. Emin misiniz?")) {
+        if(confirm("DİKKAT! Tüm oylar, seçenekler ve kodlar tamamen SİLİNECEK. Emin misiniz?")) {
             globalData = { options: {}, codes: {}, showResults: false };
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
@@ -223,7 +223,6 @@
 
     // --- ADMİN PANELİNİ ÇİZDİRME ---
     function renderAdminPanel() {
-        // 1. Sonuçları Göster (Admin her zaman görür)
         const adminResults = document.getElementById('admin-results-container');
         const optKeys = Object.keys(globalData.options);
         let totalVotes = 0;
@@ -232,18 +231,19 @@
         let resultsHtml = '';
         if(optKeys.length === 0) { resultsHtml = '<p>Henüz seçenek eklenmedi.</p>'; }
         else {
-            optKeys.forEach(id => {
+            optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
+                
                 resultsHtml += `<div style="margin-bottom:10px; font-size:14px;">
-                            <strong>${opt.text}</strong> (${opt.votes} Oy)
+                            <strong><span class="prefix">${letter})</span> ${opt.text}</strong> (${opt.votes} Oy)
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%">${percent}%</div></div>
                          </div>`;
             });
         }
         adminResults.innerHTML = resultsHtml;
 
-        // Herkese açık butonu durumu
         const btn = document.getElementById('toggle-results-btn');
         if(globalData.showResults) {
             btn.innerText = "Sonuçları Herkese Göster: AÇIK";
@@ -253,7 +253,6 @@
             btn.style.background = "#9b59b6";
         }
 
-        // 2. Kodları Listele (Gizli/Açık durumuna göre)
         const codeDisplay = document.getElementById('code-display');
         const codeKeys = Object.keys(globalData.codes);
         
@@ -283,10 +282,9 @@
         if (globalData.codes[code] === undefined) { msg.className = 'error'; msg.innerText = "Geçersiz veya kayıtlı olmayan kod!"; return; }
         if (globalData.codes[code] === true) { msg.className = 'error'; msg.innerText = "Bu kod ile daha önce oy kullanılmış!"; return; }
 
-        // Kod geçerli
         currentValidatedCode = code;
         msg.innerText = "";
-        renderVoterPanel(); // İkinci aşamaya geç
+        renderVoterPanel(); 
     }
 
     // --- KULLANICI EKRANINI ÇİZDİRME (ORTAK) ---
@@ -299,7 +297,6 @@
         
         const optKeys = Object.keys(globalData.options);
         
-        // DURUM A: Admin sonuçları HERKESE AÇIK yaptıysa
         if(globalData.showResults) {
             title.innerText = "Oylama Sonuçları";
             codeArea.classList.add('hidden');
@@ -310,11 +307,13 @@
             optKeys.forEach(id => totalVotes += globalData.options[id].votes);
             
             let html = '';
-            optKeys.forEach(id => {
+            optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
+
                 html += `<div style="margin-bottom:15px;">
-                            <strong>${opt.text}</strong> (${opt.votes} Oy)
+                            <strong><span class="prefix">${letter})</span> ${opt.text}</strong> (${opt.votes} Oy)
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%">${percent}%</div></div>
                          </div>`;
             });
@@ -322,7 +321,6 @@
             return;
         } 
         
-        // DURUM B: Sonuçlar kapalı, oylama devam ediyor
         resultsArea.classList.add('hidden');
         title.innerText = "Oylama Ekranı";
 
@@ -333,22 +331,25 @@
             return;
         }
 
-        // B1: Kullanıcı henüz kod doğrulamadıysa
         if (!currentValidatedCode) {
             codeArea.classList.remove('hidden');
             votingArea.classList.add('hidden');
             document.getElementById('voter-code-input').value = '';
-        } 
-        // B2: Kod doğrulandı, seçenekleri göster (Çoklu Seçim / Checkbox)
-        else {
+        } else {
             codeArea.classList.add('hidden');
             votingArea.classList.remove('hidden');
             
+            const currentSelections = Array.from(document.querySelectorAll('input[name="poll_option"]:checked')).map(cb => cb.value);
+
             let html = '';
-            optKeys.forEach(id => {
+            optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
+                const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
+                const isChecked = currentSelections.includes(id) ? 'checked' : '';
+
                 html += `<label class="poll-option">
-                            <input type="checkbox" name="poll_option" value="${id}"> ${opt.text}
+                            <input type="checkbox" name="poll_option" value="${id}" ${isChecked}> 
+                            <span class="prefix">${letter})</span> ${opt.text}
                          </label>`;
             });
             container.innerHTML = html;
@@ -360,28 +361,24 @@
         const msg = document.getElementById('voter-message');
         const selectedOptions = document.querySelectorAll('input[name="poll_option"]:checked');
 
-        // Kurallar: Tam 3 Seçenek işaretlenmeli
         if (selectedOptions.length !== 3) { 
             msg.className = 'error'; 
             msg.innerText = `Lütfen tam olarak 3 seçenek işaretleyin. (Şu an ${selectedOptions.length} adet seçtiniz)`; 
             return; 
         }
 
-        // Seçilen her seçeneğin oyunu 1 artır
         selectedOptions.forEach(checkbox => {
             const optionId = checkbox.value;
             globalData.options[optionId].votes += 1;
         });
 
-        // Kodu kullanıldı (harcandı) olarak işaretle
         globalData.codes[currentValidatedCode] = true; 
 
         saveToFirebase().then(() => {
-            currentValidatedCode = null; // Sıfırla ki bir sonraki kişiye ekran yenilensin
+            currentValidatedCode = null; 
             msg.className = 'success';
             msg.innerText = "Oylarınız başarıyla kaydedildi! Teşekkürler.";
             
-            // 3 saniye sonra mesajı silip ekranı başa al
             setTimeout(() => {
                 msg.innerText = '';
                 renderVoterPanel(); 
@@ -389,7 +386,6 @@
         });
     }
 
-    // Uygulama başlangıcı
     initLiveSync();
 </script>
 
