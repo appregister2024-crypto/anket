@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canlı Güvenli Oylama Sistemi</title>
     <style>
-        /* ARKA PLAN GÖRSELİ EKLENDİ VE MOBİL İÇİN OPTİMİZE EDİLDİ */
+        /* ARKA PLAN - GÖZ YORMAYAN MODERN GEÇİŞ */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             margin: 0;
@@ -13,26 +13,42 @@
             display: flex; 
             justify-content: center; 
             align-items: center;
-            background-image: url('arkaplan.png');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background: linear-gradient(135deg, #f4f7f6 0%, #e9eff1 100%);
             color: #333; 
             padding: 20px;
         }
         
-        /* FORM KUTUSU ARKA PLANDAN KOPARILDI (Okunabilirlik İçin) */
-        .container { 
-            background: rgba(255, 255, 255, 0.95); 
-            backdrop-filter: blur(10px);
-            padding: 30px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
-            width: 100%; 
-            max-width: 500px; 
+        /* FORM KUTUSU VE LOGO ALANI DÜZENİ */
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
         }
 
-        h1, h2, h3 { text-align: center; color: #2c3e50; }
+        /* LOGO KUTUSU (Oylama ekranının tam üzerinde alt alta durması için) */
+        .logo-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .logo-container img {
+            max-width: 220px;
+            height: auto;
+            /* İstendiğinde hafif gölge veya estetik eklenebilir */
+        }
+
+        /* FORM KUTUSU */
+        .container { 
+            background: #ffffff; 
+            padding: 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
+            width: 100%; 
+            box-sizing: border-box;
+        }
+
+        h1, h2, h3 { text-align: center; color: #2c3e50; margin-top: 5px; }
         .hidden { display: none !important; }
         input[type="text"], input[type="password"], button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px;}
         button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3s; }
@@ -56,7 +72,7 @@
             line-height: 22px; 
             width: 0%; 
             transition: width 0.8s ease, background-color 0.8s ease;
-            text-shadow: 0px 1px 2px rgba(0,0,0,0.6); /* Açık renklerde yazının okunması için gölge */
+            text-shadow: 0px 1px 2px rgba(0,0,0,0.6);
         }
         .prefix { color: #2980b9; font-weight: bold; margin-right: 5px; }
         .clickable-header { cursor: pointer; user-select: none; color: #2980b9; transition: color 0.2s; }
@@ -65,70 +81,70 @@
 </head>
 <body>
 
-<div class="container">
-    <!-- ANA OYLAMA VE SONUÇ EKRANI -->
-    <div id="voter-panel">
-        <h1 id="page-title">Oylama Ekranı</h1>
-        <p id="voter-message"></p>
-
-        <!-- AŞAMA 1: KOD GİRİŞ EKRANI -->
-        <div id="code-entry-area">
-            <p style="text-align:center; font-size:15px; font-weight:500;">Oy kullanabilmek için lütfen katılımcı kodunuzu girin.</p>
-            <input type="text" id="voter-code-input" placeholder="4 Haneli Katılım Kodunuz" maxlength="4">
-            <button onclick="verifyCode()" style="font-size: 16px;">Kodu Doğrula ve Devam Et</button>
-        </div>
-        
-        <!-- AŞAMA 2: OYLAMA SEÇENEKLERİ (Doğrulama Sonrası Açılır) -->
-        <div id="voting-area" class="hidden">
-            <p style="text-align:center; color:#e67e22; font-weight:bold;">Lütfen tam olarak 3 seçenek işaretleyin.</p>
-            <div id="poll-items-container">Yükleniyor...</div>
-            <button onclick="submitVote()" style="background:#27ae60; font-size: 16px;">Seçimlerimi Onayla ve Oy Ver</button>
-        </div>
-
-        <!-- AŞAMA 3: SONUÇLAR (Herkese Açık Yapıldığında Görünür) -->
-        <div id="public-results-area" class="hidden"></div>
-        
-        <button class="admin-btn" onclick="showPanel('login-panel')">Admin Girişi</button>
+<div class="wrapper">
+    <div class="logo-container">
+        <img src="data:image/png;base64,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" alt="GPS Logo">
     </div>
 
-    <!-- ADMİN GİRİŞ EKRANI -->
-    <div id="login-panel" class="hidden">
-        <h2>Admin Paneli Girişi</h2>
-        <input type="text" id="admin-user" placeholder="Kullanıcı Adı">
-        <input type="password" id="admin-pass" placeholder="Şifre">
-        <button onclick="loginAdmin()">Giriş Yap</button>
-        <p id="login-error" class="error"></p>
-        <button onclick="showPanel('voter-panel')" style="background:#95a5a6;">Geri Dön</button>
-    </div>
+    <div class="container">
+        <div id="voter-panel">
+            <h1 id="page-title">Oylama Ekranı</h1>
+            <p id="voter-message"></p>
 
-    <!-- ADMİN KONTROL PANELİ -->
-    <div id="admin-panel" class="hidden">
-        <h2>Yönetim Paneli</h2>
-        
-        <h3>1. Oylama Sonuçları ve Ayarlar</h3>
-        <button id="toggle-results-btn" onclick="toggleResults()" style="background:#9b59b6;">Sonuçları Herkese Göster: KAPALI</button>
-        <div id="admin-results-container" style="margin-top:15px;"></div>
-        
-        <hr>
-        <h3>2. Oylama Maddeleri</h3>
-        <input type="text" id="new-option" placeholder="Yeni seçenek yazın...">
-        <button onclick="addOption()">Seçenek Ekle</button>
-        <button onclick="clearOptions()" style="background:#e67e22; margin-top:10px;">Sadece Oyları ve Seçenekleri Sıfırla</button>
+            <div id="code-entry-area">
+                <p style="text-align:center; font-size:15px; font-weight:500;">Oy kullanabilmek için lütfen katılımcı kodunuzu girin.</p>
+                <input type="text" id="voter-code-input" placeholder="4 Haneli Katılım Kodunuz" maxlength="4">
+                <button onclick="verifyCode()" style="font-size: 16px;">Kodu Doğrula ve Devam Et</button>
+            </div>
+            
+            <div id="voting-area" class="hidden">
+                <p style="text-align:center; color:#e67e22; font-weight:bold;">Lütfen tam olarak 3 seçenek işaretleyin.</p>
+                <div id="poll-items-container">Yükleniyor...</div>
+                <button onclick="submitVote()" style="background:#27ae60; font-size: 16px;">Seçimlerimi Onayla ve Oy Ver</button>
+            </div>
 
-        <hr>
-        <h3 class="clickable-header" onclick="toggleCodesVisibility()" title="Kodları göstermek/gizlemek için tıklayın">
-            3. Katılımcı Kodları 👁️
-        </h3>
-        <p style="font-size: 12px; color: #666; text-align: center;">Gizli kodları görmek için yukarıdaki başlığa tıklayın.</p>
-        
-        <button onclick="generateCodes()" style="background:#27ae60;">100 Rastgele Kod Üret</button>
-        <button onclick="copyCodes()" style="background:#2980b9;">📋 Kodları Kopyala</button>
-        <button onclick="clearCodes()" style="background:#c0392b; margin-top:10px;">Tüm Kodları Sıfırla</button>
+            <div id="public-results-area" class="hidden"></div>
+            
+            <button class="admin-btn" onclick="showPanel('login-panel')">Admin Girişi</button>
+        </div>
 
-        <div class="code-list hidden" id="code-display"></div>
-        
-        <hr>
-        <button class="admin-btn" onclick="logoutAdmin()">Çıkış Yap</button>
+        <div id="login-panel" class="hidden">
+            <h2>Admin Paneli Girişi</h2>
+            <input type="text" id="admin-user" placeholder="Kullanıcı Adı">
+            <input type="password" id="admin-pass" placeholder="Şifre">
+            <button onclick="loginAdmin()">Giriş Yap</button>
+            <p id="login-error" class="error"></p>
+            <button onclick="showPanel('voter-panel')" style="background:#95a5a6;">Geri Dön</button>
+        </div>
+
+        <div id="admin-panel" class="hidden">
+            <h2>Yönetim Paneli</h2>
+            
+            <h3>1. Oylama Sonuçları ve Ayarlar</h3>
+            <button id="toggle-results-btn" onclick="toggleResults()" style="background:#9b59b6;">Sonuçları Herkese Göster: KAPALI</button>
+            <div id="admin-results-container" style="margin-top:15px;"></div>
+            
+            <hr>
+            <h3>2. Oylama Maddeleri</h3>
+            <input type="text" id="new-option" placeholder="Yeni seçenek yazın...">
+            <button onclick="addOption()">Seçenek Ekle</button>
+            <button onclick="clearOptions()" style="background:#e67e22; margin-top:10px;">Sadece Oyları ve Seçenekleri Sıfırla</button>
+
+            <hr>
+            <h3 class="clickable-header" onclick="toggleCodesVisibility()" title="Kodları göstermek/gizlemek için tıklayın">
+                3. Katılımcı Kodları 👁️
+            </h3>
+            <p style="font-size: 12px; color: #666; text-align: center;">Gizli kodları görmek için yukarıdaki başlığa tıklayın.</p>
+            
+            <button onclick="generateCodes()" style="background:#27ae60;">100 Rastgele Kod Üret</button>
+            <button onclick="copyCodes()" style="background:#2980b9;">📋 Kodları Kopyala</button>
+            <button onclick="clearCodes()" style="background:#c0392b; margin-top:10px;">Tüm Kodları Sıfırla</button>
+
+            <div class="code-list hidden" id="code-display"></div>
+            
+            <hr>
+            <button class="admin-btn" onclick="logoutAdmin()">Çıkış Yap</button>
+        </div>
     </div>
 </div>
 
@@ -141,15 +157,12 @@
     let currentValidatedCode = null; 
     let adminCodesVisible = false;   
 
-    // --- RENK HESAPLAMA (Yüzdeye göre açıktan koyuya yeşil) ---
     function getBarColor(percent) {
-        if (percent === 0) return 'transparent'; // Oy yoksa renk yok
-        // HSL (Hue, Saturation, Lightness). Lightness %80 (açık) ile %35 (koyu) arası değişir.
+        if (percent === 0) return 'transparent';
         const lightness = 80 - (percent * 0.45); 
         return `hsl(145, 70%, ${lightness}%)`; 
     }
 
-    // --- VERİTABANINDAN VERİLERİ ANLIK ÇEKME (REALTIME) ---
     function initLiveSync() {
         fetch(FIREBASE_URL + ".json").then(res => res.json()).then(data => {
             if(data) {
@@ -186,7 +199,6 @@
         });
     }
 
-    // --- PANEL GEÇİŞLERİ ---
     function showPanel(panelId) {
         document.getElementById('voter-panel').classList.add('hidden');
         document.getElementById('login-panel').classList.add('hidden');
@@ -202,7 +214,6 @@
         if(panelId === 'admin-panel') renderAdminPanel();
     }
 
-    // --- ADMİN GİRİŞİ ---
     function loginAdmin() {
         const user = document.getElementById('admin-user').value;
         const pass = document.getElementById('admin-pass').value;
@@ -217,7 +228,6 @@
     }
     function logoutAdmin() { showPanel('voter-panel'); }
 
-    // --- ADMİN İŞLEMLERİ ---
     function addOption() {
         const text = document.getElementById('new-option').value.trim();
         if (text) {
@@ -293,7 +303,7 @@
                 const opt = globalData.options[id];
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
                 const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
-                const dynamicColor = getBarColor(percent); // Renk hesapla
+                const dynamicColor = getBarColor(percent);
                 
                 resultsHtml += `<div style="margin-bottom:10px; font-size:14px;">
                             <strong><span class="prefix">${letter})</span> ${opt.text}</strong> (${opt.votes} Oy)
@@ -387,7 +397,7 @@
                 const opt = globalData.options[id];
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
                 const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
-                const dynamicColor = getBarColor(percent); // Renk hesapla
+                const dynamicColor = getBarColor(percent);
 
                 html += `<div style="margin-bottom:15px;">
                             <strong><span class="prefix">${letter})</span> ${opt.text}</strong> (${opt.votes} Oy)
@@ -411,8 +421,6 @@
         if (!currentValidatedCode) {
             codeArea.classList.remove('hidden');
             votingArea.classList.add('hidden');
-            // DÜZELTME: document.getElementById('voter-code-input').value = ''; kodu buradan KALDIRILDI.
-            // Artık kullanıcı arka planda güncellemeler çalışırken yazdığı silinmeyecek.
         } else {
             codeArea.classList.add('hidden');
             votingArea.classList.remove('hidden');
@@ -453,7 +461,6 @@
 
         saveToFirebase().then(() => {
             currentValidatedCode = null; 
-            // Başarılı oylama sonrası form kutusunu şimdi temizleyebiliriz
             document.getElementById('voter-code-input').value = '';
             msg.className = 'success';
             msg.innerText = "Oylarınız başarıyla kaydedildi! Teşekkürler.";
