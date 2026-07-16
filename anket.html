@@ -75,8 +75,8 @@
 </div>
 
 <script>
-    // ⚠️ BURAYI DEĞİŞTİRİN: Firebase'den kopyaladığınız Realtime Database linkini yapıştırın (Sonunda / olmalı)
-    const FIREBASE_URL = "BURAYA_KOPYALADIGIN_FIREBASE_LINKINI_YAZ/"; 
+    // Sizin Firebase veritabanı adresiniz sisteme entegre edildi
+    const FIREBASE_URL = "https://anket-aa7c7-default-rtdb.firebaseio.com/"; 
 
     let globalData = { options: {}, codes: {}, showResults: false };
 
@@ -155,13 +155,13 @@
         }
     }
 
-    // --- SONUÇLARI GÖSTER / GİZLE (YENİ ÖZELLİK) ---
+    // --- SONUÇLARI GÖSTER / GİZLE ---
     function toggleResults() {
         globalData.showResults = !globalData.showResults;
         saveToFirebase().then(() => renderAdminPanel());
     }
 
-    // --- 100 GÜVENLİ KOD ÜRETİMİ (SÜREKLİ SIFIRLANMAZ) ---
+    // --- 100 GÜVENLİ KOD ÜRETİMİ ---
     function generateCodes() {
         if(Object.keys(globalData.codes).length > 0) {
             if(!confirm("Sistemde zaten kodlar var. Yeniden üretmek eskisini siler. Emin misiniz?")) return;
