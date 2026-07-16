@@ -151,7 +151,6 @@
 <script>
     // Firebase Bağlantısı
     const FIREBASE_URL = "https://anket-aa7c7-default-rtdb.firebaseio.com/"; 
-    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     let globalData = { options: {}, codes: {}, showResults: false };
     let currentValidatedCode = null; 
@@ -302,11 +301,12 @@
             optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
+                // DEĞİŞİKLİK BURADA: Artık sayı kullanılıyor.
+                const number = index + 1;
                 const dynamicColor = getBarColor(percent);
                 
                 resultsHtml += `<div style="margin-bottom:10px; font-size:14px;">
-                            <strong><span class="prefix">${letter})</span> ${opt.text}</strong> (${opt.votes} Oy)
+                            <strong><span class="prefix">${number})</span> ${opt.text}</strong> (${opt.votes} Oy)
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
                          </div>`;
             });
@@ -396,11 +396,12 @@
             optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
+                // DEĞİŞİKLİK BURADA: Artık sayı kullanılıyor.
+                const number = index + 1;
                 const dynamicColor = getBarColor(percent);
 
                 html += `<div style="margin-bottom:15px;">
-                            <strong><span class="prefix">${letter})</span> ${opt.text}</strong> (${opt.votes} Oy)
+                            <strong><span class="prefix">${number})</span> ${opt.text}</strong> (${opt.votes} Oy)
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
                          </div>`;
             });
@@ -430,12 +431,13 @@
             let html = '';
             optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
-                const letter = ALPHABET[index] ? ALPHABET[index] : (index + 1);
+                // DEĞİŞİKLİK BURADA: Artık sayı kullanılıyor.
+                const number = index + 1;
                 const isChecked = currentSelections.includes(id) ? 'checked' : '';
 
                 html += `<label class="poll-option">
                             <input type="checkbox" name="poll_option" value="${id}" ${isChecked} onchange="checkSelectionLimit(this)"> 
-                            <span class="prefix">${letter})</span> ${opt.text}
+                            <span class="prefix">${number})</span> ${opt.text}
                          </label>`;
             });
             container.innerHTML = html;
