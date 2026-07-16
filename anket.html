@@ -35,7 +35,6 @@
         .logo-container img {
             max-width: 220px;
             height: auto;
-            /* İstendiğinde hafif gölge veya estetik eklenebilir */
         }
 
         /* FORM KUTUSU */
@@ -296,17 +295,29 @@
         optKeys.forEach(id => totalVotes += globalData.options[id].votes);
         
         let resultsHtml = '';
-        if(optKeys.length === 0) { resultsHtml = '<p>Henüz seçenek eklenmedi.</p>'; }
-        else {
-            optKeys.forEach((id, index) => {
-                const opt = globalData.options[id];
+        if(optKeys.length === 0) { 
+            resultsHtml = '<p>Henüz seçenek eklenmedi.</p>'; 
+        } else {
+            // Seçenekleri diziye çevirip oylara göre büyükten küçüğe sıralıyoruz
+            let optionsArray = optKeys.map((id, index) => {
+                return { id: id, data: globalData.options[id], origNum: index + 1 };
+            });
+            optionsArray.sort((a, b) => b.data.votes - a.data.votes);
+            
+            // En yüksek oyu belirliyoruz (hiç oy yoksa havai fişek patlamaz)
+            let maxVotes = optionsArray.length > 0 ? optionsArray[0].data.votes : 0;
+
+            optionsArray.forEach((item) => {
+                const opt = item.data;
                 const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                // DEĞİŞİKLİK BURADA: Artık sayı kullanılıyor.
-                const number = index + 1;
+                const number = item.origNum; // Kullanıcının oylama ekranında gördüğü numara korunuyor
                 const dynamicColor = getBarColor(percent);
                 
+                // Seçenek en yüksek oyu almışsa ve oyu 0'dan büyükse havai fişek ekle
+                const winnerIcon = (opt.votes === maxVotes && maxVotes > 0) ? ' 🎇' : '';
+                
                 resultsHtml += `<div style="margin-bottom:10px; font-size:14px;">
-                            <strong><span class="prefix">${number})</span> ${opt.text}</strong> (${opt.votes} Oy)
+                            <strong><span class="prefix">${number})</span> ${opt.text}${winnerIcon}</strong> (${opt.votes} Oy)
                             <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
                          </div>`;
             });
@@ -393,18 +404,31 @@
             optKeys.forEach(id => totalVotes += globalData.options[id].votes);
             
             let html = '';
-            optKeys.forEach((id, index) => {
-                const opt = globalData.options[id];
-                const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                // DEĞİŞİKLİK BURADA: Artık sayı kullanılıyor.
-                const number = index + 1;
-                const dynamicColor = getBarColor(percent);
+            if(optKeys.length > 0) {
+                // Seçenekleri diziye çevirip oylara göre büyükten küçüğe sıralıyoruz
+                let optionsArray = optKeys.map((id, index) => {
+                    return { id: id, data: globalData.options[id], origNum: index + 1 };
+                });
+                optionsArray.sort((a, b) => b.data.votes - a.data.votes);
+                
+                // En yüksek oyu belirliyoruz
+                let maxVotes = optionsArray.length > 0 ? optionsArray[0].data.votes : 0;
 
-                html += `<div style="margin-bottom:15px;">
-                            <strong><span class="prefix">${number})</span> ${opt.text}</strong> (${opt.votes} Oy)
-                            <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
-                         </div>`;
-            });
+                optionsArray.forEach((item) => {
+                    const opt = item.data;
+                    const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                    const number = item.origNum; // Numaraları sabit tutuyoruz ki A,B,C yerleşimiyle eşleşsin
+                    const dynamicColor = getBarColor(percent);
+                    
+                    // Kazananı işaretle
+                    const winnerIcon = (opt.votes === maxVotes && maxVotes > 0) ? ' 🎇' : '';
+
+                    html += `<div style="margin-bottom:15px;">
+                                <strong><span class="prefix">${number})</span> ${opt.text}${winnerIcon}</strong> (${opt.votes} Oy)
+                                <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
+                             </div>`;
+                });
+            }
             resultsArea.innerHTML = html || '<p>Kayıtlı veri yok.</p>';
             return;
         } 
@@ -431,7 +455,6 @@
             let html = '';
             optKeys.forEach((id, index) => {
                 const opt = globalData.options[id];
-                // DEĞİŞİKLİK BURADA: Artık sayı kullanılıyor.
                 const number = index + 1;
                 const isChecked = currentSelections.includes(id) ? 'checked' : '';
 
