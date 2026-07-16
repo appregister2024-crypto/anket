@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Güvenli Oylama Sistemi</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; display: flex; justify-content: center; padding: 50px; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h1, h2 { text-align: center; color: #2c3e50; }
+        .hidden { display: none; }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #2980b9; }
+        .admin-btn { background-color: #e74c3c; margin-top: 20px; }
+        .admin-btn:hover { background-color: #c0392b; }
+        .poll-option { display: block; margin-bottom: 10px; }
+        .code-list { max-height: 150px; overflow-y: auto; background: #eee; padding: 10px; font-family: monospace; font-size: 14px; }
+        hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
+        .error { color: red; font-size: 14px; text-align: center; }
+        .success { color: green; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="voter-panel">
+        <h1>Oylama Ekranı</h1>
+        <div id="poll-items-container">
+            <p>Şu an aktif bir oylama bulunmuyor.</p>
+        </div>
+        <hr>
+        <input type="text" id="voter-code" placeholder="4 Haneli Katılım Kodunuz" maxlength="4">
+        <button onclick="submitVote()">Oy Kullan</button>
+        <p id="voter-message"></p>
+        
+        <button class="admin-btn" onclick="showPanel('login-panel')">Admin Girişi</button>
+    </div>
+
+    <div id="login-panel" class="hidden">
+        <h2>Admin Paneli Girişi</h2>
+        <input type="text" id="admin-user" placeholder="Kullanıcı Adı">
+        <input type="password" id="admin-pass" placeholder="Şifre">
+        <button onclick="loginAdmin()">Giriş Yap</button>
+        <p id="login-error" class="error"></p>
+        <button onclick="showPanel('voter-panel')" style="background:#95a5a6;">Geri Dön</button>
+    </div>
+
+    <div id="admin-panel" class="hidden">
+        <h2>Yönetim Paneli</h2>
+        
+        <h3>1. Oylama Maddeleri</h3>
+        <input type="text" id="new-option" placeholder="Yeni seçenek yazın...">
+        <button onclick="addOption()">Seçenek Ekle</button>
+        <ul id="options-list"></ul>
+        <button onclick="clearVotes()" style="background:#f39c12;">Tüm Oyları Sıfırla</button>
+
+        <hr>
+
+        <h3>2. Güvenli Kod Üretimi</h3>
+        <p style="font-size: 12px; color: #666;">Tahmin edilmesi zor, tamamen rastgele 100 adet 4 haneli kod üretir.</p>
+        <button onclick="generateCodes()" style="background:#27ae60;">100 Rastgele Kod Üret</button>
+        <div class="code-list" id="code-display">Üretilen kodlar burada görünecek...</div>
+        
+        <hr>
+        <button class="admin-btn" onclick="logoutAdmin()">Çıkış Yap</button>
+    </div>
+</div>
+
+<script>
+    // VERİ TABANI SİMÜLASYONU (Local Storage kullanıyoruz)
+    let db = JSON.parse(localStorage.getItem('pollDB')) || {
+        options: [], // Örn: [{id: 1, text: "Seçenek A", votes: 0}]
+        codes: {}    // Örn: {"4921": false, "1042": true} (true = kullanıldı)
+    };
+
+    function saveDB() {
+        localStorage.setItem('pollDB', JSON.stringify(db));
+        renderVoterPanel();
+    }
+
+    // --- PANEL GEÇİŞLERİ ---
+    function showPanel(panelId) {
+        document.getElementById('voter-panel').classList.add('hidden');
+        document.getElementById('login-panel').classList.add('hidden');
+        document.getElementById('admin-panel').classList.add('hidden');
+        document.getElementById(panelId).classList.remove('hidden');
+        if(panelId === 'voter-panel') renderVoterPanel();
+        if(panelId === 'admin-panel') renderAdminPanel();
+    }
+
+    // --- ADMİN GİRİŞİ ---
+    function loginAdmin() {
+        const user = document.getElementById('admin-user').value;
+        const pass = document.getElementById('admin-pass').value;
+        
+        if (user === 'admin' && pass === 'Opex2026') {
+            document.getElementById('login-error').innerText = '';
+            document.getElementById('admin-user').value = '';
+            document.getElementById('admin-pass').value = '';
+            showPanel('admin-panel');
+        } else {
+            document.getElementById('login-error').innerText = 'Hatalı kullanıcı adı veya şifre!';
+        }
+    }
+
+    function logoutAdmin() { showPanel('voter-panel'); }
+
+    // --- ADMİN İŞLEMLERİ (MADDELER) ---
+    function addOption() {
+        const text = document.getElementById('new-option').value.trim();
+        if (text) {
+            db.options.push({ id: Date.now(), text: text, votes: 0 });
+            document.getElementById('new-option').value = '';
+            saveDB();
+            renderAdminPanel();
+        }
+    }
+
+    function clearVotes() {
+        if(confirm("Tüm oylar silinecek, emin misiniz?")) {
+            db.options.forEach(opt => opt.votes = 0);
+            for(let code in db.codes) { db.codes[code] = false; } // Kodları tekrar kullanılabilir yap
+            saveDB();
+            renderAdminPanel();
+        }
+    }
+
+    // --- ADMİN İŞLEMLERİ (KOD ÜRETİMİ - ALGORİTMA) ---
+    function generateCodes() {
+        if(!confirm("Eski kodlar silinip 100 yeni kod üretilecek. Emin misiniz?")) return;
+        
+        const newCodes = new Set();
+        // Basit sıralı numaralar yerine tahmin edilmesi zor rastgele kodlar üretiyoruz
+        while(newCodes.size < 100) {
+            // 1000 ile 9999 arası rastgele sayı
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            newCodes.add(code);
+        }
+
+        db.codes = {};
+        newCodes.forEach(code => {
+            db.codes[code] = false; // false = henüz kullanılmadı
+        });
+
+        saveDB();
+        renderAdminPanel();
+    }
+
+    function renderAdminPanel() {
+        // Seçenekleri Listele
+        const list = document.getElementById('options-list');
+        list.innerHTML = '';
+        db.options.forEach(opt => {
+            list.innerHTML += `<li>${opt.text} - (Oy: ${opt.votes})</li>`;
+        });
+
+        // Kodları Listele
+        const codeDisplay = document.getElementById('code-display');
+        const codeKeys = Object.keys(db.codes);
+        if(codeKeys.length > 0) {
+            let html = '<strong>Geçerli Kodlar:</strong><br>';
+            codeKeys.forEach((code, index) => {
+                const status = db.codes[code] ? '(Kullanıldı)' : '';
+                html += `${code} ${status} ${index % 5 === 4 ? '<br>' : ' | '}`;
+            });
+            codeDisplay.innerHTML = html;
+        }
+    }
+
+    // --- OY KULLANMA İŞLEMLERİ ---
+    function renderVoterPanel() {
+        const container = document.getElementById('poll-items-container');
+        document.getElementById('voter-message').innerText = '';
+        document.getElementById('voter-code').value = '';
+
+        if (db.options.length === 0) {
+            container.innerHTML = '<p>Şu an aktif bir oylama bulunmuyor.</p>';
+            return;
+        }
+
+        let html = '';
+        db.options.forEach(opt => {
+            html += `<label class="poll-option">
+                        <input type="radio" name="poll" value="${opt.id}"> ${opt.text}
+                     </label>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function submitVote() {
+        const selected = document.querySelector('input[name="poll"]:checked');
+        const code = document.getElementById('voter-code').value.trim();
+        const msg = document.getElementById('voter-message');
+
+        if (!selected) {
+            msg.className = 'error'; msg.innerText = "Lütfen bir seçenek işaretleyin."; return;
+        }
+        if (code.length !== 4) {
+            msg.className = 'error'; msg.innerText = "Lütfen 4 haneli kodunuzu girin."; return;
+        }
+
+        // Kod Doğrulama Algoritması
+        if (db.codes[code] === undefined) {
+            msg.className = 'error'; msg.innerText = "Geçersiz veya kayıtlı olmayan kod!"; return;
+        }
+        if (db.codes[code] === true) {
+            msg.className = 'error'; msg.innerText = "Bu kod ile daha önce oy kullanılmış!"; return;
+        }
+
+        // Oyu kaydet
+        const optionId = parseInt(selected.value);
+        const optionIndex = db.options.findIndex(o => o.id === optionId);
+        
+        db.options[optionIndex].votes += 1; // Oyu artır
+        db.codes[code] = true;              // Kodu kullanıldı olarak işaretle
+        
+        saveDB(); // Kaydet
+        
+        msg.className = 'success'; 
+        msg.innerText = "Oyunuz başarıyla kaydedildi! Teşekkürler.";
+        
+        // Seçimi temizle
+        selected.checked = false;
+        document.getElementById('voter-code').value = '';
+    }
+
+    // Başlangıçta oylama panelini yükle
+    renderVoterPanel();
+</script>
+
+</body>
+</html>
