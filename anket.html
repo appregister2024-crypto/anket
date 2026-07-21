@@ -58,6 +58,10 @@
         .flex-buttons { display: flex; gap: 10px; margin-top: 10px; }
         .flex-buttons button { margin: 0 !important; }
         
+        /* BENİ HATIRLA CHECKBOX STİLİ */
+        .remember-container { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 15px; color: #555; cursor: pointer; }
+        .remember-container input { width: auto; margin: 0 !important; transform: scale(1.2); cursor: pointer; }
+
         /* İKON BUTONLARI İÇİN STİL */
         .action-icon { cursor: pointer; margin-left: 8px; font-size: 16px; transition: transform 0.2s; display: inline-block; }
         .action-icon:hover { transform: scale(1.3); }
@@ -123,6 +127,9 @@
             <h2>Admin Paneli Girişi</h2>
             <input type="text" id="admin-user" placeholder="Kullanıcı Adı">
             <input type="password" id="admin-pass" placeholder="Şifre">
+            <label class="remember-container">
+                <input type="checkbox" id="remember-me"> Beni Hatırla
+            </label>
             <button onclick="loginAdmin()">Giriş Yap</button>
             <p id="login-error" class="error"></p>
             <button onclick="showPanel('voter-panel')" style="background:#95a5a6;">Geri Dön</button>
@@ -234,21 +241,48 @@
             document.getElementById('voter-message').innerText = '';
             renderVoterPanel();
         }
+        
+        // BENİ HATIRLA: Panele girerken verileri doldurma kontrolü
+        if(panelId === 'login-panel') {
+            const savedUser = localStorage.getItem('adminUser');
+            const savedPass = localStorage.getItem('adminPass');
+            if (savedUser && savedPass) {
+                document.getElementById('admin-user').value = savedUser;
+                document.getElementById('admin-pass').value = savedPass;
+                document.getElementById('remember-me').checked = true;
+            } else {
+                document.getElementById('admin-user').value = '';
+                document.getElementById('admin-pass').value = '';
+                document.getElementById('remember-me').checked = false;
+            }
+        }
+        
         if(panelId === 'admin-panel') renderAdminPanel();
     }
 
     function loginAdmin() {
         const user = document.getElementById('admin-user').value;
         const pass = document.getElementById('admin-pass').value;
+        const remember = document.getElementById('remember-me').checked;
+
         if (user === 'admin' && pass === 'Opex2026') {
             document.getElementById('login-error').innerText = '';
-            document.getElementById('admin-user').value = '';
-            document.getElementById('admin-pass').value = '';
+            
+            // BENİ HATIRLA: Kaydetme veya Temizleme işlemi
+            if (remember) {
+                localStorage.setItem('adminUser', user);
+                localStorage.setItem('adminPass', pass);
+            } else {
+                localStorage.removeItem('adminUser');
+                localStorage.removeItem('adminPass');
+            }
+            
             showPanel('admin-panel');
         } else {
             document.getElementById('login-error').innerText = 'Hatalı kullanıcı adı veya şifre!';
         }
     }
+    
     function logoutAdmin() { showPanel('voter-panel'); }
 
     function addOption() {
@@ -286,7 +320,7 @@
         }
     }
 
-    // YENİ: Sadece oyları sıfırlama (Seçenekler kalır)
+    // Sadece oyları sıfırlama (Seçenekler kalır)
     function resetVotes() {
         if(confirm("DİKKAT! Sadece verilen tüm oylar sıfırlanacaktır. Seçenekler kalacaktır. Emin misiniz?")) {
             for (let key in globalData.options) {
@@ -296,7 +330,7 @@
         }
     }
 
-    // YENİ: Seçenekleri kökten silme
+    // Seçenekleri kökten silme
     function deleteAllOptions() {
         if(confirm("DİKKAT! Tüm seçenekler tamamen silinecek. Emin misiniz?")) {
             globalData.options = {};
@@ -323,7 +357,7 @@
         saveToFirebase().then(() => renderAdminPanel());
     }
 
-    // YENİ: Kodları boşa çekme (True'dan False'a çevirme)
+    // Kodları boşa çekme (True'dan False'a çevirme)
     function resetCodesStatus() {
         if(confirm("Kullanılmış tüm kodları tekrar kullanılabilir (boş) hale getirmek istediğinize emin misiniz?")) {
             for(let key in globalData.codes) {
@@ -333,7 +367,7 @@
         }
     }
 
-    // YENİ: Üretilmiş tüm kodları kökten silme
+    // Üretilmiş tüm kodları kökten silme
     function deleteAllCodes() {
         if(confirm("DİKKAT! Üretilen tüm kodlar sistemden tamamen silinecek. Emin misiniz?")) {
             globalData.codes = {};
