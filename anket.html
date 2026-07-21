@@ -55,6 +55,8 @@
         
         .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
         .flex-row input { margin: 0 !important; }
+        .flex-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .flex-buttons button { margin: 0 !important; }
         
         /* İKON BUTONLARI İÇİN STİL */
         .action-icon { cursor: pointer; margin-left: 8px; font-size: 16px; transition: transform 0.2s; display: inline-block; }
@@ -111,6 +113,7 @@
                 <button onclick="submitVote()" style="background:#27ae60; font-size: 16px;">Seçimlerimi Onayla ve Oy Ver</button>
             </div>
 
+            <!-- SONUÇLARIN GÖRÜNECEĞİ ALAN EKLENDİ -->
             <div id="public-results-area" class="hidden"></div>
             
             <button class="admin-btn" onclick="showPanel('login-panel')">Admin Girişi</button>
@@ -140,7 +143,11 @@
             </div>
             <button onclick="addOption()">Seçenek Ekle</button>
             
-            <button onclick="clearOptions()" style="background:#e67e22; margin-top:10px;">Sadece Oyları ve Seçenekleri Sıfırla</button>
+            <!-- BUTONLAR AYRILDI -->
+            <div class="flex-buttons">
+                <button onclick="resetVotes()" style="background:#e67e22;">Oyları Sıfırla</button>
+                <button onclick="deleteAllOptions()" style="background:#d35400;">Seçenekleri Sil</button>
+            </div>
 
             <hr>
             <h3 class="clickable-header" onclick="toggleCodesVisibility()" title="Kodları göstermek/gizlemek için tıklayın">
@@ -150,7 +157,12 @@
             
             <button onclick="generateCodes()" style="background:#27ae60;">120 Rastgele Kod Üret</button>
             <button onclick="copyCodes()" style="background:#2980b9;">📋 Kodları Kopyala</button>
-            <button onclick="clearCodes()" style="background:#c0392b; margin-top:10px;">Tüm Kodları Sıfırla</button>
+            
+            <!-- KOD SIFIRLAMA BUTONLARI AYRILDI -->
+            <div class="flex-buttons">
+                <button onclick="resetCodesStatus()" style="background:#e74c3c;">Kodları Boşa Çek</button>
+                <button onclick="deleteAllCodes()" style="background:#c0392b;">Tüm Kodları Sil</button>
+            </div>
 
             <div class="code-list hidden" id="code-display"></div>
             
@@ -274,24 +286,28 @@
         }
     }
 
-    function toggleResults() {
-        globalData.showResults = !globalData.showResults;
-        saveToFirebase().then(() => renderAdminPanel());
+    // YENİ: Sadece oyları sıfırlama (Seçenekler kalır)
+    function resetVotes() {
+        if(confirm("DİKKAT! Sadece verilen tüm oylar sıfırlanacaktır. Seçenekler kalacaktır. Emin misiniz?")) {
+            for (let key in globalData.options) {
+                globalData.options[key].votes = 0;
+            }
+            saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
+        }
     }
 
-    function clearOptions() {
-        if(confirm("DİKKAT! Tüm seçenekler ve verilen oylar silinecek (Kodlar korunacak). Emin misiniz?")) {
+    // YENİ: Seçenekleri kökten silme
+    function deleteAllOptions() {
+        if(confirm("DİKKAT! Tüm seçenekler tamamen silinecek. Emin misiniz?")) {
             globalData.options = {};
             globalData.showResults = false;
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
     }
 
-    function clearCodes() {
-        if(confirm("DİKKAT! Üretilen tüm kodlar silinecek (Seçenekler korunacak). Emin misiniz?")) {
-            globalData.codes = {};
-            saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
-        }
+    function toggleResults() {
+        globalData.showResults = !globalData.showResults;
+        saveToFirebase().then(() => renderAdminPanel());
     }
 
     function generateCodes() {
@@ -305,6 +321,24 @@
         globalData.codes = {};
         newCodes.forEach(code => globalData.codes[code] = false);
         saveToFirebase().then(() => renderAdminPanel());
+    }
+
+    // YENİ: Kodları boşa çekme (True'dan False'a çevirme)
+    function resetCodesStatus() {
+        if(confirm("Kullanılmış tüm kodları tekrar kullanılabilir (boş) hale getirmek istediğinize emin misiniz?")) {
+            for(let key in globalData.codes) {
+                globalData.codes[key] = false;
+            }
+            saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
+        }
+    }
+
+    // YENİ: Üretilmiş tüm kodları kökten silme
+    function deleteAllCodes() {
+        if(confirm("DİKKAT! Üretilen tüm kodlar sistemden tamamen silinecek. Emin misiniz?")) {
+            globalData.codes = {};
+            saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
+        }
     }
 
     function toggleCodesVisibility() {
@@ -439,16 +473,16 @@
         
         const optKeys = Object.keys(globalData.options);
         
+        // 1. SONUÇLAR ALANI (Eğer Admin "Göster" dediyse çiz ve görünür yap)
         if(globalData.showResults) {
-            title.innerText = "Oylama Sonuçları";
-            codeArea.classList.add('hidden');
-            votingArea.classList.add('hidden');
             resultsArea.classList.remove('hidden');
             
             let totalVotes = 0;
             optKeys.forEach(id => totalVotes += globalData.options[id].votes);
             
-            let html = '';
+            // Sonuçların başına estetik bir başlık ekliyoruz (oylama alanından ayırmak için)
+            let html = '<h2 style="margin-top:30px; border-top:2px dashed #ccc; padding-top:20px; color:#e67e22;">Canlı Oylama Sonuçları</h2>';
+            
             if(optKeys.length > 0) {
                 let optionsArray = optKeys.map((id) => {
                     return { id: id, data: globalData.options[id] };
@@ -465,18 +499,21 @@
                     const isWinner = (opt.votes === maxVotes && maxVotes > 0);
                     const prefixHtml = isWinner ? '<span class="winner-crown">👑</span>' : `<span class="prefix">${opt.number || '-'})</span>`;
 
-                    // Not: Burada 'actionIcons' (Düzenle/Sil) KULLANILMIYOR. Sadece admin görebilir.
                     html += `<div style="margin-bottom:15px;">
                                 <strong>${prefixHtml} ${opt.text}</strong> <span style="color:#666;">(${opt.votes} Oy)</span>
                                 <div class="result-bar"><div class="result-fill" style="width:${percent}%; background-color:${dynamicColor};">${percent}%</div></div>
                              </div>`;
                 });
+            } else {
+                html += '<p>Kayıtlı veri yok.</p>';
             }
-            resultsArea.innerHTML = html || '<p>Kayıtlı veri yok.</p>';
-            return;
+            resultsArea.innerHTML = html;
+        } else {
+            // "Göster" kapalıysa sonuçları sakla
+            resultsArea.classList.add('hidden');
         } 
         
-        resultsArea.classList.add('hidden');
+        // 2. OYLAMA EKRANI ALANI (Artık sonuçlar gösterildiğinde burası KAPANMIYOR)
         title.innerText = "Oylama Ekranı";
 
         if (optKeys.length === 0) {
