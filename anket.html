@@ -116,9 +116,9 @@
             </div>
             
             <div id="voting-area" class="hidden">
-                <p style="text-align:center; color:#e67e22; font-weight:bold;">Lütfen tam olarak 3 seçenek işaretleyin.</p>
+                <p style="text-align:center; color:#e67e22; font-weight:bold;" id="voting-instructions">Lütfen tam olarak 3 seçenek işaretleyin.</p>
                 <div id="poll-items-container">Yükleniyor...</div>
-                <button onclick="submitVote()" style="background:#27ae60; font-size: 16px;">Seçimlerimi Onayla ve Oy Ver</button>
+                <button id="submit-vote-btn" onclick="submitVote()" style="background:#27ae60; font-size: 16px;">Seçimlerimi Onayla ve Oy Ver</button>
             </div>
 
             <!-- SONUÇLARIN GÖRÜNECEĞİ ALAN -->
@@ -199,14 +199,23 @@
         return `hsl(145, 70%, ${lightness}%)`; 
     }
 
-    // Tarayıcı için benzersiz bir ID oluştur veya var olanı al
-    function getDeviceId() {
-        let deviceId = localStorage.getItem('voterDeviceId');
-        if(!deviceId) {
-            deviceId = 'Cihaz-' + Math.floor(1000 + Math.random() * 9000).toString();
-            localStorage.setItem('voterDeviceId', deviceId);
-        }
-        return deviceId;
+    // TARAYICI VE CİHAZ TESPİT FONKSİYONU SADELEŞTİRİLDİ (Sayılar Kaldırıldı)
+    function getDeviceName() {
+        const ua = navigator.userAgent;
+        let os = "Cihaz";
+        if (/iPhone/i.test(ua)) os = "iPhone";
+        else if (/iPad/i.test(ua)) os = "iPad";
+        else if (/Android/i.test(ua)) os = "Android";
+        else if (/Macintosh/i.test(ua)) os = "Mac";
+        else if (/Windows/i.test(ua)) os = "Windows PC";
+
+        let browser = "";
+        if (/Edg/i.test(ua)) browser = " (Edge)";
+        else if (/Chrome/i.test(ua)) browser = " (Chrome)";
+        else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = " (Safari)";
+        else if (/Firefox/i.test(ua)) browser = " (Firefox)";
+
+        return os + browser;
     }
 
     function initLiveSync() {
@@ -275,7 +284,6 @@
         if(panelId === 'admin-panel') renderAdminPanel();
     }
 
-    // Şifreyi gizlemek için metni Hex formatına çeviren fonksiyon
     function encodeToHex(str) {
         let result = '';
         for (let i = 0; i < str.length; i++) {
@@ -363,6 +371,8 @@
             for (let key in globalData.options) {
                 globalData.options[key].votes = 0;
             }
+            // Admin test yapıyorsa engeli de kaldıralım
+            localStorage.removeItem('hasVoted');
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
     }
@@ -371,6 +381,8 @@
         if(confirm("DİKKAT! Tüm seçenekler tamamen silinecek. Emin misiniz?")) {
             globalData.options = {};
             globalData.showResults = false;
+            // Admin test yapıyorsa engeli de kaldıralım
+            localStorage.removeItem('hasVoted');
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
     }
@@ -394,7 +406,7 @@
             newCodes.add(Math.floor(1000 + Math.random() * 9000).toString());
         }
         globalData.codes = {};
-        newCodes.forEach(code => globalData.codes[code] = { used: false, device: "" }); // Eski mantığı obje yapısına çevirdik
+        newCodes.forEach(code => globalData.codes[code] = { used: false, device: "" }); 
         saveToFirebase().then(() => renderAdminPanel());
     }
 
@@ -403,6 +415,8 @@
             for(let key in globalData.codes) {
                 globalData.codes[key] = { used: false, device: "" };
             }
+            // Admin test yapıyorsa engeli de kaldıralım
+            localStorage.removeItem('hasVoted');
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
     }
@@ -410,6 +424,8 @@
     function deleteAllCodes() {
         if(confirm("DİKKAT! Üretilen tüm kodlar sistemden tamamen silinecek. Emin misiniz?")) {
             globalData.codes = {};
+            // Admin test yapıyorsa engeli de kaldıralım
+            localStorage.removeItem('hasVoted');
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
     }
@@ -443,7 +459,6 @@
         
         const usedCount = codeKeys.filter(code => {
             let cData = globalData.codes[code];
-            // Eski 'boolean' kullanan verilerle uyumlu çalışması için
             return (typeof cData === 'object' && cData !== null) ? cData.used === true : cData === true;
         }).length;
 
@@ -513,6 +528,7 @@
                     
                     if (typeof cData === 'object' && cData !== null) {
                         isUsed = cData.used;
+                        // Formatlanmış ismin gösterimi
                         deviceName = cData.device ? ` [${cData.device}]` : "";
                     } else {
                         isUsed = cData === true;
@@ -531,8 +547,16 @@
     }
 
     function verifyCode() {
-        const code = document.getElementById('voter-code-input').value.trim();
         const msg = document.getElementById('voter-message');
+        
+        // Cihaz bazlı engelleme kontrolü
+        if (localStorage.getItem('hasVoted') === 'true') {
+            msg.className = 'error'; 
+            msg.innerText = "Bu cihazdan daha önce oy kullanılmıştır!"; 
+            return; 
+        }
+
+        const code = document.getElementById('voter-code-input').value.trim();
 
         if (code.length !== 4) { msg.className = 'error'; msg.innerText = "Lütfen 4 haneli kodunuzu girin."; return; }
         
@@ -628,6 +652,21 @@
         
         title.innerText = "Oylama Ekranı";
 
+        // CİHAZ BAZLI ENGELLEME MESAJI
+        if (localStorage.getItem('hasVoted') === 'true') {
+            codeArea.classList.add('hidden');
+            votingArea.classList.remove('hidden');
+            
+            document.getElementById('voting-instructions').classList.add('hidden');
+            document.getElementById('submit-vote-btn').classList.add('hidden');
+            
+            container.innerHTML = '<p style="text-align:center; color:#e74c3c; font-weight:bold; font-size:16px; padding: 20px 0;">Bu cihazdan daha önce oy kullanılmıştır.<br><br>Katılımınız için teşekkür ederiz.</p>';
+            return;
+        } else {
+            document.getElementById('voting-instructions').classList.remove('hidden');
+            document.getElementById('submit-vote-btn').classList.remove('hidden');
+        }
+
         if (optKeys.length === 0) {
             codeArea.classList.add('hidden');
             votingArea.classList.remove('hidden');
@@ -666,9 +705,15 @@
         }
     }
 
-    // SENKRONİZASYON (Aynı Anda Oylama) SORUNUNU ÇÖZEN YENİ MANTIK
     function submitVote() {
         const msg = document.getElementById('voter-message');
+        
+        if (localStorage.getItem('hasVoted') === 'true') {
+            msg.className = 'error'; 
+            msg.innerText = "Bu cihazdan daha önce oy kullanılmıştır!"; 
+            return; 
+        }
+
         const selectedOptions = document.querySelectorAll('input[name="poll_option"]:checked');
 
         if (selectedOptions.length !== 3) { 
@@ -677,19 +722,16 @@
             return; 
         }
 
-        // 1. Oy vermek isteyen kullanıcının Cihaz Kimliğini al
-        const currentDeviceId = getDeviceId();
+        const currentDeviceName = getDeviceName();
         
         msg.className = '';
         msg.innerText = "Oylarınız işleniyor, lütfen bekleyin...";
 
-        // 2. OYLARIN EZİLMEMESİ İÇİN: Veritabanından EN GÜNCEL halini oy basıldığı salisede çek.
         fetch(FIREBASE_URL + ".json")
             .then(res => res.json())
             .then(latestData => {
                 if(!latestData || !latestData.codes || !latestData.options) return;
 
-                // Başkası saliseler önce bu kodu kullanmış mı diye son bir kontrol yap
                 let cData = latestData.codes[currentValidatedCode];
                 let isUsed = (typeof cData === 'object' && cData !== null) ? cData.used : cData === true;
                 
@@ -699,24 +741,23 @@
                     return;
                 }
 
-                // 3. Değişiklik Paketini (Updates) Hazırla
                 const updates = {};
                 
-                // Seçilen maddelerin anlık en güncel oy sayısını bulup sadece 1 artır
                 selectedOptions.forEach(checkbox => {
                     const optionId = checkbox.value;
                     let currentVotes = latestData.options[optionId].votes || 0;
                     updates[`options/${optionId}/votes`] = currentVotes + 1;
                 });
 
-                // Kullanılan kodu "Kullanıldı" yap ve Yanına Cihaz ID'sini yaz
-                updates[`codes/${currentValidatedCode}`] = { used: true, device: currentDeviceId };
+                updates[`codes/${currentValidatedCode}`] = { used: true, device: currentDeviceName };
 
-                // 4. PUT yerine PATCH kullanarak sadece seçilen verileri değiştir (Diğer oyları ezme)
                 fetch(FIREBASE_URL + ".json", {
                     method: 'PATCH',
                     body: JSON.stringify(updates)
                 }).then(() => {
+                    // OY KULLANILDIĞINDA CİHAZA İŞARET BIRAK
+                    localStorage.setItem('hasVoted', 'true');
+                    
                     currentValidatedCode = null; 
                     document.getElementById('voter-code-input').value = '';
                     msg.className = 'success';
