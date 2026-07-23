@@ -418,7 +418,7 @@
             newCodes.add(Math.floor(1000 + Math.random() * 9000).toString());
         }
         globalData.codes = {};
-        newCodes.forEach(code => globalData.codes[code] = { used: false, device: "" }); 
+        newCodes.forEach(code => globalData.codes[code] = { used: false, device: "", votedFor: "" }); 
         
         globalData.pollVersion = (globalData.pollVersion || 1) + 1;
         saveToFirebase().then(() => renderAdminPanel());
@@ -427,7 +427,7 @@
     function resetCodesStatus() {
         if(confirm("Kullanılmış tüm kodları tekrar kullanılabilir (boş) hale getirmek istediğinize emin misiniz?")) {
             for(let key in globalData.codes) {
-                globalData.codes[key] = { used: false, device: "" };
+                globalData.codes[key] = { used: false, device: "", votedFor: "" };
             }
             
             globalData.pollVersion = (globalData.pollVersion || 1) + 1;
@@ -449,27 +449,36 @@
         renderAdminPanel();
     }
 
-    // KOPYALAMA MANTIĞI GÜNCELLENDİ (Sıralaması arayüz ile birebir aynı olacak)
+    // KOPYALAMA İŞLEMİ DE YENİ DÜZENE UYARLANDI
     function copyCodes() {
         const codeKeys = Object.keys(globalData.codes);
         if(codeKeys.length === 0) { alert("Kopyalanacak kod yok!"); return; }
         
-        // Kodları alıp statüye göre ayırıyoruz
         let codeObjects = codeKeys.map(code => {
             let cData = globalData.codes[code];
-            let isUsed = (typeof cData === 'object' && cData !== null) ? cData.used : cData === true;
-            return { code: code, isUsed: isUsed };
+            let isUsed = false;
+            let deviceName = "";
+            let votedFor = "";
+            
+            if (typeof cData === 'object' && cData !== null) {
+                isUsed = cData.used;
+                deviceName = cData.device ? `[${cData.device}] ` : "";
+                votedFor = cData.votedFor ? `${cData.votedFor} seçeneklerine oy kullandı.` : "";
+            } else {
+                isUsed = cData === true;
+            }
+            return { code: code, isUsed: isUsed, deviceName: deviceName, votedFor: votedFor };
         });
 
-        // Tıpkı arayüzdeki gibi kullanılmış olanları üste alıyoruz
         codeObjects.sort((a, b) => {
             if (a.isUsed === b.isUsed) return a.code.localeCompare(b.code);
-            return a.isUsed ? -1 : 1; // Kullanılanlar (true) yukarıda (-1)
+            return a.isUsed ? -1 : 1; 
         });
 
         let textToCopy = "Oylama Katılım Kodları:\n\n";
         codeObjects.forEach((item, index) => {
-            textToCopy += `${index + 1}. Kod: ${item.code}\n`;
+            let statusText = item.isUsed ? `(Kullanıldı: ${item.deviceName}${item.votedFor})` : "(Boş)";
+            textToCopy += `${index + 1}. Kod: ${item.code} ${statusText}\n`;
         });
 
         navigator.clipboard.writeText(textToCopy).then(() => {
@@ -543,7 +552,6 @@
             btn.style.background = "#9b59b6";
         }
 
-        // KODLARIN GÖSTERİMİ VE SIRALANMASI GÜNCELLENDİ
         const codeDisplay = document.getElementById('code-display');
         
         if(adminCodesVisible) {
@@ -554,13 +562,18 @@
                     let cData = globalData.codes[code];
                     let isUsed = false;
                     let deviceName = "";
+                    let votedFor = "";
+                    
                     if (typeof cData === 'object' && cData !== null) {
                         isUsed = cData.used;
-                        deviceName = cData.device ? ` [${cData.device}]` : "";
+                        // Format: "[Windows PC (Chrome)] "
+                        deviceName = cData.device ? `[${cData.device}] ` : "";
+                        // Format: "1, 2, 3 seçeneklerine oy kullandı."
+                        votedFor = cData.votedFor ? `${cData.votedFor} seçeneklerine oy kullandı.` : "";
                     } else {
                         isUsed = cData === true;
                     }
-                    return { code: code, isUsed: isUsed, deviceName: deviceName };
+                    return { code: code, isUsed: isUsed, deviceName: deviceName, votedFor: votedFor };
                 });
 
                 // Kullanılmış kodlar (true) yukarıda olacak şekilde sıralama
@@ -574,7 +587,7 @@
                 // Tek satır düzeni ile ekrana yazdırma
                 codeObjects.forEach((item, index) => {
                     const status = item.isUsed 
-                        ? `<span style="color:#27ae60;">☑️${item.deviceName}</span>` 
+                        ? `<span style="color:#27ae60;">☑️ ${item.deviceName}${item.votedFor}</span>` 
                         : `<span style="color:#e74c3c;">❌</span>`;
                         
                     html += `<div style="padding: 6px 0; border-bottom: 1px solid #ddd; display: flex; align-items: center;">
@@ -789,13 +802,30 @@
 
                 const updates = {};
                 
+                // MADDELERİN NUMARALARINI TOPLAMAK İÇİN BOŞ DİZİ
+                let votedNumbers = [];
+                
                 selectedOptions.forEach(checkbox => {
                     const optionId = checkbox.value;
                     let currentVotes = latestData.options[optionId].votes || 0;
                     updates[`options/${optionId}/votes`] = currentVotes + 1;
+                    
+                    // Madde numarasını al ve listeye ekle
+                    if(latestData.options[optionId].number) {
+                        votedNumbers.push(latestData.options[optionId].number);
+                    }
                 });
 
-                updates[`codes/${currentValidatedCode}`] = { used: true, device: currentDeviceName };
+                // Numaraları küçükten büyüğe sırala ve aralarına virgül koy
+                votedNumbers.sort((a, b) => a - b);
+                const votedForString = votedNumbers.join(', ');
+
+                // CİHAZIN YANINDA OY VERİLEN MADDELERİ DE VERİTABANINA KAYDET
+                updates[`codes/${currentValidatedCode}`] = { 
+                    used: true, 
+                    device: currentDeviceName, 
+                    votedFor: votedForString 
+                };
 
                 fetch(FIREBASE_URL + ".json", {
                     method: 'PATCH',
