@@ -24,7 +24,7 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
-            max-width: 500px;
+            max-width: 1000px;
         }
 
         /* LOGO KUTUSU */
@@ -53,10 +53,10 @@
         button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3s; }
         button:hover { background-color: #2980b9; }
         
-        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
         .flex-row input { margin: 0 !important; }
-        .flex-buttons { display: flex; gap: 10px; margin-top: 10px; }
-        .flex-buttons button { margin: 0 !important; }
+        .flex-buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .flex-buttons button { margin: 0 !important; flex: 1; }
         
         /* BENİ HATIRLA CHECKBOX STİLİ */
         .remember-container { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 15px; color: #555; cursor: pointer; }
@@ -150,7 +150,11 @@
             <h3>2. Yeni Oylama Maddesi Ekle</h3>
             <div class="flex-row">
                 <input type="number" id="new-option-num" placeholder="No" style="width: 80px;">
-                <input type="text" id="new-option" placeholder="Yeni seçenek yazın..." style="flex-grow: 1;">
+                <input type="text" id="new-option" placeholder="Yeni seçenek / proje adı..." style="flex-grow: 1;">
+            </div>
+            <div class="flex-row">
+                <input type="text" id="new-option-p1" placeholder="1. Kişi İsim (Opsiyonel)" style="flex-grow: 1;">
+                <input type="text" id="new-option-p2" placeholder="2. Kişi İsim (Opsiyonel)" style="flex-grow: 1;">
             </div>
             <button onclick="addOption()">Seçenek Ekle</button>
             
@@ -193,6 +197,16 @@
         if (percent === 0) return 'transparent';
         const lightness = 80 - (percent * 0.45); 
         return `hsl(145, 70%, ${lightness}%)`; 
+    }
+
+    // Tarayıcı için benzersiz bir ID oluştur veya var olanı al
+    function getDeviceId() {
+        let deviceId = localStorage.getItem('voterDeviceId');
+        if(!deviceId) {
+            deviceId = 'Cihaz-' + Math.floor(1000 + Math.random() * 9000).toString();
+            localStorage.setItem('voterDeviceId', deviceId);
+        }
+        return deviceId;
     }
 
     function initLiveSync() {
@@ -275,8 +289,6 @@
         const pass = document.getElementById('admin-pass').value;
         const remember = document.getElementById('remember-me').checked;
 
-        // 'admin' kelimesinin Hex karşılığı: '61646d696e'
-        // 'Opex2026' kelimesinin Hex karşılığı: '4f70657832303236'
         if (encodeToHex(user) === '61646d696e' && encodeToHex(pass) === '4f70657832303236') {
             document.getElementById('login-error').innerText = '';
             
@@ -287,7 +299,6 @@
                 localStorage.removeItem('adminUser');
                 localStorage.removeItem('adminPass');
             }
-            
             showPanel('admin-panel');
         } else {
             document.getElementById('login-error').innerText = 'Hatalı kullanıcı adı veya şifre!';
@@ -297,13 +308,29 @@
     function logoutAdmin() { showPanel('voter-panel'); }
 
     function addOption() {
-        const text = document.getElementById('new-option').value.trim();
+        const textBase = document.getElementById('new-option').value.trim();
+        const p1 = document.getElementById('new-option-p1').value.trim();
+        const p2 = document.getElementById('new-option-p2').value.trim();
         const numVal = document.getElementById('new-option-num').value.trim();
-        if (text && numVal) {
+        
+        if (textBase && numVal) {
+            let finalText = textBase;
+            if (p1 && p2) {
+                finalText += ` - ${p1} & ${p2}`;
+            } else if (p1) {
+                finalText += ` - ${p1}`;
+            } else if (p2) {
+                finalText += ` - ${p2}`;
+            }
+
             const id = "opt_" + Date.now();
-            globalData.options[id] = { text: text, votes: 0, number: parseInt(numVal) };
+            globalData.options[id] = { text: finalText, votes: 0, number: parseInt(numVal) };
+            
             document.getElementById('new-option').value = '';
             document.getElementById('new-option-num').value = '';
+            document.getElementById('new-option-p1').value = '';
+            document.getElementById('new-option-p2').value = '';
+            
             saveToFirebase().then(() => renderAdminPanel());
         } else {
             alert("Lütfen madde numarası ve seçenek metnini eksiksiz girin.");
@@ -367,14 +394,14 @@
             newCodes.add(Math.floor(1000 + Math.random() * 9000).toString());
         }
         globalData.codes = {};
-        newCodes.forEach(code => globalData.codes[code] = false);
+        newCodes.forEach(code => globalData.codes[code] = { used: false, device: "" }); // Eski mantığı obje yapısına çevirdik
         saveToFirebase().then(() => renderAdminPanel());
     }
 
     function resetCodesStatus() {
         if(confirm("Kullanılmış tüm kodları tekrar kullanılabilir (boş) hale getirmek istediğinize emin misiniz?")) {
             for(let key in globalData.codes) {
-                globalData.codes[key] = false;
+                globalData.codes[key] = { used: false, device: "" };
             }
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
@@ -414,7 +441,12 @@
         let totalVotes = 0;
         optKeys.forEach(id => totalVotes += globalData.options[id].votes);
         
-        const usedCount = codeKeys.filter(code => globalData.codes[code] === true).length;
+        const usedCount = codeKeys.filter(code => {
+            let cData = globalData.codes[code];
+            // Eski 'boolean' kullanan verilerle uyumlu çalışması için
+            return (typeof cData === 'object' && cData !== null) ? cData.used === true : cData === true;
+        }).length;
+
         const totalCodes = codeKeys.length;
         
         let resultsHtml = '';
@@ -428,7 +460,13 @@
             let optionsArray = optKeys.map((id) => {
                 return { id: id, data: globalData.options[id] };
             });
-            optionsArray.sort((a, b) => b.data.votes - a.data.votes);
+            
+            optionsArray.sort((a, b) => {
+                if (b.data.votes !== a.data.votes) {
+                    return b.data.votes - a.data.votes;
+                }
+                return (a.data.number || 0) - (b.data.number || 0);
+            });
             
             let maxVotes = optionsArray.length > 0 ? optionsArray[0].data.votes : 0;
 
@@ -469,7 +507,18 @@
             if(codeKeys.length > 0) {
                 let html = `<strong>Kayıtlı Kodlar (${codeKeys.length} Adet):</strong><br>`;
                 codeKeys.forEach((code, index) => {
-                    const status = globalData.codes[code] ? '<span style="color:red;">(Kullanıldı)</span>' : '(Boş)';
+                    let cData = globalData.codes[code];
+                    let isUsed = false;
+                    let deviceName = "";
+                    
+                    if (typeof cData === 'object' && cData !== null) {
+                        isUsed = cData.used;
+                        deviceName = cData.device ? ` [${cData.device}]` : "";
+                    } else {
+                        isUsed = cData === true;
+                    }
+
+                    const status = isUsed ? `<span style="color:red;">(Kullanıldı${deviceName})</span>` : '(Boş)';
                     html += `${code} ${status} ${index % 3 === 2 ? '<br>' : ' &nbsp;|&nbsp; '}`;
                 });
                 codeDisplay.innerHTML = html;
@@ -486,8 +535,12 @@
         const msg = document.getElementById('voter-message');
 
         if (code.length !== 4) { msg.className = 'error'; msg.innerText = "Lütfen 4 haneli kodunuzu girin."; return; }
-        if (globalData.codes[code] === undefined) { msg.className = 'error'; msg.innerText = "Geçersiz veya kayıtlı olmayan kod!"; return; }
-        if (globalData.codes[code] === true) { msg.className = 'error'; msg.innerText = "Bu kod ile daha önce oy kullanılmış!"; return; }
+        
+        let cData = globalData.codes[code];
+        if (cData === undefined) { msg.className = 'error'; msg.innerText = "Geçersiz veya kayıtlı olmayan kod!"; return; }
+        
+        let isUsed = (typeof cData === 'object' && cData !== null) ? cData.used : cData;
+        if (isUsed === true) { msg.className = 'error'; msg.innerText = "Bu kod ile daha önce oy kullanılmış!"; return; }
 
         currentValidatedCode = code;
         msg.innerText = "";
@@ -523,7 +576,10 @@
         const optKeys = Object.keys(globalData.options);
         const codeKeys = Object.keys(globalData.codes);
         
-        const usedCount = codeKeys.filter(code => globalData.codes[code] === true).length;
+        const usedCount = codeKeys.filter(code => {
+            let cData = globalData.codes[code];
+            return (typeof cData === 'object' && cData !== null) ? cData.used === true : cData === true;
+        }).length;
         
         if(globalData.showResults) {
             resultsArea.classList.remove('hidden');
@@ -539,7 +595,13 @@
                 let optionsArray = optKeys.map((id) => {
                     return { id: id, data: globalData.options[id] };
                 });
-                optionsArray.sort((a, b) => b.data.votes - a.data.votes);
+                
+                optionsArray.sort((a, b) => {
+                    if (b.data.votes !== a.data.votes) {
+                        return b.data.votes - a.data.votes;
+                    }
+                    return (a.data.number || 0) - (b.data.number || 0);
+                });
                 
                 let maxVotes = optionsArray.length > 0 ? optionsArray[0].data.votes : 0;
 
@@ -604,6 +666,7 @@
         }
     }
 
+    // SENKRONİZASYON (Aynı Anda Oylama) SORUNUNU ÇÖZEN YENİ MANTIK
     function submitVote() {
         const msg = document.getElementById('voter-message');
         const selectedOptions = document.querySelectorAll('input[name="poll_option"]:checked');
@@ -614,24 +677,60 @@
             return; 
         }
 
-        selectedOptions.forEach(checkbox => {
-            const optionId = checkbox.value;
-            globalData.options[optionId].votes += 1;
-        });
+        // 1. Oy vermek isteyen kullanıcının Cihaz Kimliğini al
+        const currentDeviceId = getDeviceId();
+        
+        msg.className = '';
+        msg.innerText = "Oylarınız işleniyor, lütfen bekleyin...";
 
-        globalData.codes[currentValidatedCode] = true; 
+        // 2. OYLARIN EZİLMEMESİ İÇİN: Veritabanından EN GÜNCEL halini oy basıldığı salisede çek.
+        fetch(FIREBASE_URL + ".json")
+            .then(res => res.json())
+            .then(latestData => {
+                if(!latestData || !latestData.codes || !latestData.options) return;
 
-        saveToFirebase().then(() => {
-            currentValidatedCode = null; 
-            document.getElementById('voter-code-input').value = '';
-            msg.className = 'success';
-            msg.innerText = "Oylarınız başarıyla kaydedildi! Teşekkürler.";
-            
-            setTimeout(() => {
-                msg.innerText = '';
-                renderVoterPanel(); 
-            }, 3000);
-        });
+                // Başkası saliseler önce bu kodu kullanmış mı diye son bir kontrol yap
+                let cData = latestData.codes[currentValidatedCode];
+                let isUsed = (typeof cData === 'object' && cData !== null) ? cData.used : cData === true;
+                
+                if (isUsed) {
+                    msg.className = 'error';
+                    msg.innerText = "Üzgünüz, bu kod saniyeler önce kullanıldı!";
+                    return;
+                }
+
+                // 3. Değişiklik Paketini (Updates) Hazırla
+                const updates = {};
+                
+                // Seçilen maddelerin anlık en güncel oy sayısını bulup sadece 1 artır
+                selectedOptions.forEach(checkbox => {
+                    const optionId = checkbox.value;
+                    let currentVotes = latestData.options[optionId].votes || 0;
+                    updates[`options/${optionId}/votes`] = currentVotes + 1;
+                });
+
+                // Kullanılan kodu "Kullanıldı" yap ve Yanına Cihaz ID'sini yaz
+                updates[`codes/${currentValidatedCode}`] = { used: true, device: currentDeviceId };
+
+                // 4. PUT yerine PATCH kullanarak sadece seçilen verileri değiştir (Diğer oyları ezme)
+                fetch(FIREBASE_URL + ".json", {
+                    method: 'PATCH',
+                    body: JSON.stringify(updates)
+                }).then(() => {
+                    currentValidatedCode = null; 
+                    document.getElementById('voter-code-input').value = '';
+                    msg.className = 'success';
+                    msg.innerText = "Oylarınız başarıyla kaydedildi! Teşekkürler.";
+                    
+                    setTimeout(() => {
+                        msg.innerText = '';
+                        renderVoterPanel(); 
+                    }, 3000);
+                }).catch(err => {
+                    msg.className = 'error';
+                    msg.innerText = "Bağlantı hatası oluştu, tekrar deneyin.";
+                });
+            });
     }
 
     initLiveSync();
