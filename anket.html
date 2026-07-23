@@ -71,7 +71,7 @@
         .poll-option { display: block; margin-bottom: 12px; padding: 12px; background: #fdfdfd; border-radius: 6px; border: 1px solid #e0e0e0; cursor: pointer; transition: background 0.2s; }
         .poll-option:hover { background: #f1f8ff; }
         .poll-option input { margin-right: 10px; transform: scale(1.2); }
-        .code-list { max-height: 200px; overflow-y: auto; background: #eee; padding: 10px; font-family: monospace; font-size: 14px; border-radius: 5px; margin-top: 10px; }
+        .code-list { max-height: 250px; overflow-y: auto; background: #f9f9f9; padding: 15px; font-family: monospace; font-size: 15px; border-radius: 5px; margin-top: 10px; border: 1px solid #e0e0e0; }
         hr { margin: 20px 0; border: 0; border-top: 1px solid #e0e0e0; }
         .error { color: #e74c3c; font-size: 14px; text-align: center; font-weight: bold; }
         .success { color: #27ae60; font-size: 14px; text-align: center; font-weight: bold; }
@@ -225,7 +225,6 @@
                 if(!globalData.codes) globalData.codes = {};
                 if(!globalData.pollVersion) globalData.pollVersion = 1;
                 
-                // OTURUM (VERSİYON) KONTROLÜ: Cihazın engeli yeni bir anket başladığında kaldırılır.
                 const localVersion = localStorage.getItem('voterPollVersion');
                 if (localVersion !== globalData.pollVersion.toString()) {
                     localStorage.removeItem('hasVoted');
@@ -244,7 +243,6 @@
                     if(!globalData.codes) globalData.codes = {};
                     if(!globalData.pollVersion) globalData.pollVersion = 1;
 
-                    // Arka planda anket sıfırlandıysa cihazı anında serbest bırak
                     const localVersion = localStorage.getItem('voterPollVersion');
                     if (localVersion !== globalData.pollVersion.toString()) {
                         localStorage.removeItem('hasVoted');
@@ -386,7 +384,6 @@
             for (let key in globalData.options) {
                 globalData.options[key].votes = 0;
             }
-            // Versiyonu artırarak bağlı tüm cihazlardaki engelleri otomatik kaldırıyoruz
             globalData.pollVersion = (globalData.pollVersion || 1) + 1;
             saveToFirebase().then(() => { renderAdminPanel(); renderVoterPanel(); });
         }
@@ -452,13 +449,27 @@
         renderAdminPanel();
     }
 
+    // KOPYALAMA MANTIĞI GÜNCELLENDİ (Sıralaması arayüz ile birebir aynı olacak)
     function copyCodes() {
         const codeKeys = Object.keys(globalData.codes);
         if(codeKeys.length === 0) { alert("Kopyalanacak kod yok!"); return; }
         
+        // Kodları alıp statüye göre ayırıyoruz
+        let codeObjects = codeKeys.map(code => {
+            let cData = globalData.codes[code];
+            let isUsed = (typeof cData === 'object' && cData !== null) ? cData.used : cData === true;
+            return { code: code, isUsed: isUsed };
+        });
+
+        // Tıpkı arayüzdeki gibi kullanılmış olanları üste alıyoruz
+        codeObjects.sort((a, b) => {
+            if (a.isUsed === b.isUsed) return a.code.localeCompare(b.code);
+            return a.isUsed ? -1 : 1; // Kullanılanlar (true) yukarıda (-1)
+        });
+
         let textToCopy = "Oylama Katılım Kodları:\n\n";
-        codeKeys.forEach((code, index) => {
-            textToCopy += `${index + 1}. Kod: ${code}\n`;
+        codeObjects.forEach((item, index) => {
+            textToCopy += `${index + 1}. Kod: ${item.code}\n`;
         });
 
         navigator.clipboard.writeText(textToCopy).then(() => {
@@ -532,27 +543,48 @@
             btn.style.background = "#9b59b6";
         }
 
+        // KODLARIN GÖSTERİMİ VE SIRALANMASI GÜNCELLENDİ
         const codeDisplay = document.getElementById('code-display');
         
         if(adminCodesVisible) {
             codeDisplay.classList.remove('hidden');
             if(codeKeys.length > 0) {
-                let html = `<strong>Kayıtlı Kodlar (${codeKeys.length} Adet):</strong><br>`;
-                codeKeys.forEach((code, index) => {
+                // Kodları bir diziye alıp kullanılma durumuna göre sıralıyoruz
+                let codeObjects = codeKeys.map(code => {
                     let cData = globalData.codes[code];
                     let isUsed = false;
                     let deviceName = "";
-                    
                     if (typeof cData === 'object' && cData !== null) {
                         isUsed = cData.used;
                         deviceName = cData.device ? ` [${cData.device}]` : "";
                     } else {
                         isUsed = cData === true;
                     }
-
-                    const status = isUsed ? `<span style="color:red;">(Kullanıldı${deviceName})</span>` : '(Boş)';
-                    html += `${code} ${status} ${index % 3 === 2 ? '<br>' : ' &nbsp;|&nbsp; '}`;
+                    return { code: code, isUsed: isUsed, deviceName: deviceName };
                 });
+
+                // Kullanılmış kodlar (true) yukarıda olacak şekilde sıralama
+                codeObjects.sort((a, b) => {
+                    if (a.isUsed === b.isUsed) return a.code.localeCompare(b.code);
+                    return a.isUsed ? -1 : 1; 
+                });
+
+                let html = `<strong>Kayıtlı Kodlar (${codeKeys.length} Adet):</strong><br><div style="margin-top: 10px;">`;
+                
+                // Tek satır düzeni ile ekrana yazdırma
+                codeObjects.forEach((item, index) => {
+                    const status = item.isUsed 
+                        ? `<span style="color:#27ae60;">☑️${item.deviceName}</span>` 
+                        : `<span style="color:#e74c3c;">❌</span>`;
+                        
+                    html += `<div style="padding: 6px 0; border-bottom: 1px solid #ddd; display: flex; align-items: center;">
+                                <span style="display:inline-block; width: 35px; font-weight: bold; color: #666;">${index + 1})</span>
+                                <span style="font-weight: bold; margin-right: 15px; width: 50px;">${item.code}</span>
+                                <span>${status}</span>
+                             </div>`;
+                });
+                
+                html += `</div>`;
                 codeDisplay.innerHTML = html;
             } else {
                 codeDisplay.innerHTML = "Henüz kod üretilmedi.";
